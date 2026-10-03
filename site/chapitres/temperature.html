@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le feu sous la poêle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  /* la fiche des chances : un ingrédient par ligne, sa barre, son pourcentage */
+  .chances { display: grid; grid-template-columns: 118px 250px 76px; grid-auto-rows: 32px; column-gap: 14px; align-items: center; margin-top: 14px; }
+  .chances .nom { font: 700 var(--ws)/32px 'Kalam', cursive; padding-top: 5px; }
+  .reglage.cache { display: none; }
+  .chances .barre { height: 16px; background: #EFE6D6; border-radius: 8px; overflow: hidden; }
+  .chances .barre i { display: block; height: 100%; width: 0; background: var(--tomate); border-radius: 8px; transition: width .8s cubic-bezier(.55,0,.25,1); }
+  .chances .pct { font: 700 var(--ws)/32px 'Bricolage Grotesque'; font-variant-numeric: tabular-nums; text-align: right; }
+  .tirages { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 32px; }
+  .tirages span { background: var(--ruban); font: 700 var(--ws)/1.3 'Kalam', cursive; padding: 1px 10px; border-radius: 4px; }
+  .tirages span.rare { background: var(--tomate); color: #fff; }
+  .reglage { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .reglage button { height: 46px; padding: 0 18px; border-radius: 999px; border: 1.5px solid var(--trait); background: transparent; font-weight: 700; cursor: pointer; }
+  .reglage button.on { background: var(--encre); border-color: var(--encre); color: #fff; }
+  .reglage .tirer { background: var(--tomate); border-color: var(--tomate); color: #fff; margin-left: auto; }
+  .reglage .tirer:hover { background: var(--tomate-f); }
+  .bouton-feu img { transition: transform .8s cubic-bezier(.55,0,.25,1); transform-origin: 50% 50%; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Température · le feu sous la poêle.
+// Vraies probabilités (Qwen2.5-0.5B-Instruct, fp16) de chaque ingrédient COMPLET après « Pour relever la sauce, le chef ajoute une pincée de »,
+// ramenées à ces 8 ingrédients (outils/calculs/temperature2.mjs). À la température T : p ∝ p^(1/T) ; T = 0 → toujours le premier.
+const { objet, element, poser, poserSur, perso, image, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Température', titre: 'Le feu sous la poêle' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+const ING = [['sel', .313147], ['poivre', .041331], ['sucre', .038389], ['paprika', .022405], ['thym', .010987], ['piment', .007543], ['cannelle', .002651], ['chocolat', .000116]];
+const chances = T => {
+  if (T === 0) return ING.map((x, i) => i === 0 ? 1 : 0);
+  const w = ING.map(([, p]) => Math.pow(p, 1 / T)), z = w.reduce((a, b) => a + b, 0);
+  return w.map(x => x / z);
+};
+const tirer = (T, n) => { const c = chances(T); return Array.from({ length: n }, () => { let r = Math.random(), i = 0; while (i < c.length - 1 && (r -= c[i]) > 0) i++; return i; }); };
+const enPct = c => c >= .1 ? Cuisine.pct(c) : c >= .001 ? Cuisine.pct(c, 1) : c > 0 ? '< 0,1 %' : '0 %';
+
+// la scène : la poêle de sauce sur le feu, le bouton du feu, et les 8 pots d'épices alignés derrière (chacun porte sa chance)
+objet('feu', 'feu-doux', 340);
+objet('poele', 'poele-sauce', 470);
+objet('bouton', 'bouton', 104, `<span class="etiq" style="--r:-2deg">le feu</span>`); O.bouton.classList.add('bouton-feu');
+ING.forEach(([n], i) => objet('pot' + i, 'epice-' + n, larg('epice-' + n, 82), `<span class="etiq" style="--r:${[-2, 1.5, -1, 2][i % 4]}deg">${n}</span><span class="score"></span>`));
+objet('chef', 'chef-sale', 160);
+const fiche = element('fiche');
+fiche.style.width = '440px';
+fiche.innerHTML = `<p class="k">Les pinc\u00e9es du chef</p><p class="t titre-pincees"></p><div class="tirages"></div><div class="reglage cache"></div>`;
+const reglage = fiche.querySelector('.reglage');
+reglage.innerHTML = `<button data-t="0">Éteint · 0</button><button data-t="1">Doux · 1</button><button data-t="2">Vif · 2</button><button class="tirer">Tirer 10 pincées</button>`;
+let Tlibre = 1;
+
+// géométrie mesurée des images : grille du feu [x0, x1, bas, largeur] ; bol de la poêle [x0, x1, bas, largeur]
+const GRILLE = { 'feu-eteint': [53, 851, 791, 860], 'feu-doux': [12, 890, 874, 900], 'feu-vif': [53, 862, 806, 900] };
+const BOL = { 'poele-sauce': [53, 509, 505, 900], 'poele-sauce-brulee': [82, 489, 542, 900] };
+const FEU_X = 620, FEU_Y = 520, FEU_L = 330, BOL_L = 245;   // centre du feu dans le monde, largeur de la grille, diamètre du bol
+function centrer(id, [x0, x1, bas, W], largeur, dy = 0) {
+  const k = largeur / (x1 - x0), cx = (x0 + x1) / 2 * k, cy = (bas - .405 * (x1 - x0)) * k;
+  O[id].style.width = W * k + 'px';
+  poser(id, FEU_X - cx, FEU_Y - cy + dy);
+}
+function feu(T) {
+  const src = T === 0 ? 'feu-eteint' : T === 1 ? 'feu-doux' : 'feu-vif';
+  const i = O.feu.querySelector('img'); if (i.getAttribute('src') !== Cuisine.A(src)) i.setAttribute('src', Cuisine.A(src));
+  centrer('feu', GRILLE[src], FEU_L);
+  O.bouton.querySelector('img').style.transform = `rotate(${T === 0 ? -110 : T === 1 ? 0 : 110}deg)`;
+  const ps = T === 2 ? 'poele-sauce-brulee' : 'poele-sauce', p = O.poele.querySelector('img');
+  if (p.getAttribute('src') !== Cuisine.A(ps)) p.setAttribute('src', Cuisine.A(ps));
+  centrer('poele', BOL[ps], BOL_L, -78);
+}
+// les chances, écrites au-dessus de chaque pot ; les pots piochés sont entourés
+function pots(T, pioches) {
+  const c = chances(T);
+  ING.forEach(([n], i) => {
+    const sc = O['pot' + i].querySelector('.score');
+    sc.textContent = enPct(c[i]); sc.classList.toggle('top', !!pioches && pioches.includes(i));
+    O['pot' + i].classList.toggle('choisi', !!pioches && pioches.includes(i));
+  });
+}
+function ardoise(titre, tirage) {
+  fiche.querySelector('.titre-pincees').textContent = titre;
+  fiche.querySelector('.tirages').innerHTML = tirage ? tirage.map(i => `<span class="${i >= 4 ? 'rare' : ''}">${ING[i][0]}</span>`).join('') : '';
+}
+reglage.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.t) { Tlibre = +b.dataset.t; reglage.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x === b)); feu(Tlibre); pots(Tlibre); ardoise('Règle le feu, puis tire', null); }
+  if (b.classList.contains('tirer')) { const t = tirer(Tlibre, 10); pots(Tlibre, t); ardoise('10 pincées', t); }
+});
+
+const ETAPES = [
+  { nom: 'La pincée', t: 'Le chef finit sa sauce. Au-dessus de chaque pot, ses chances d’être choisi.', lignes: [{ qui: 'chef', dit: '« Une pincée de… »' }], v: 'pour chaque mot suivant, le modèle calcule des probabilités. Celles-ci sont les vraies, calculées par un vrai modèle (Qwen2.5-0.5B), ramenées à ces 8 épices.', T: 1 },
+  { nom: 'Feu éteint', t: 'Feu éteint : il prend toujours le pot le plus probable.', lignes: [{ qui: 'chef', dit: '« Du sel. Du sel. Encore du sel. »' }], v: 'température 0 : des réponses prévisibles et répétables. Idéal pour extraire, classer, calculer.', T: 0 },
+  { nom: 'Feu doux', t: 'Feu doux : le sel gagne souvent, mais pas toujours.', lignes: [{ qui: 'chef', dit: '« Du sel… et tiens, un peu de poivre. »' }], v: 'température 1 : le modèle tire au sort en suivant ses vraies probabilités.', T: 1 },
+  { nom: 'Feu vif', t: 'Feu vif : les chances s’égalisent, les pots improbables sortent…', lignes: [{ qui: 'chef', dit: '« Du chocolat ?! »', tampon: 'BRÛLÉ' }], v: 'température 2 : les mots peu probables gagnent du terrain. Plus créatif, mais plus de dérapages.', T: 2 },
+  { nom: 'À toi', t: 'À toi : règle le feu sur la fiche, puis fais tirer 10 pincées au chef.', lignes: [{ qui: 'chef', dit: '« Je suis prêt : règle le feu ! »' }], v: 'la température divise les scores du modèle avant le calcul des chances : basse, elle creuse les écarts ; haute, elle les aplatit.', T: 'libre' },
+];
+
+function monde(kk, k) {
+  const e = ETAPES[kk], T = e.T === 'libre' ? Tlibre : e.T;
+  poserSur('bouton', 330, 725);
+  ING.forEach((x, i) => poserSur('pot' + i, 250 + i * 118, 300));
+  feu(k < 0 ? 1 : T);
+  perso('chef', kk === 3 ? 'chef-goute' : kk === 1 ? 'chef-attend' : 'chef-sale', 1090, 730);
+  placer(fiche, 1400, 220, true, 1.5);
+  if (kk === 0) { pots(T); ardoise('Avant de goûter', null); }
+  else if (kk <= 3) { const t = tirer(T, 5); pots(T, t); ardoise('5 pincées', t); }
+  else { pots(T); ardoise('Règle le feu, puis tire', null); reglage.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', +x.dataset.t === Tlibre)); }
+  reglage.classList.toggle('cache', kk !== 4);
+}
+
+Cuisine.lancer({
+  id: 'temperature', notion: 'Température', titre: 'Le feu sous la poêle',
+  chapeau: 'Pourquoi la même question ne donne pas toujours la même réponse. Et comment on règle ça.',
+  etapes: ETAPES, monde, duree: '1 minute', camTitre: [300, 0, 1600, 900],
+  suivant: { href: 'entrainement.html', titre: 'Chapitre suivant : l’école hôtelière' },
+  recap: {
+    titre: 'La température, c’est le feu sous la poêle',
+    trois: [
+      { img: 'feu-eteint', t: 'Éteint · 0', d: 'Toujours le plus probable. Pour extraire, classer, calculer.' },
+      { img: 'feu-doux', t: 'Doux · autour de 1', d: 'Le tirage suit les vraies chances. Pour écrire naturellement.' },
+      { img: 'feu-vif', t: 'Vif · au-dessus de 1', d: 'Les improbables remontent. Pour chercher des idées, avec prudence.' },
+    ],
+    entretien: '« La température règle le hasard dans le choix du mot suivant. Le modèle calcule une probabilité pour chaque suite possible ; à température basse, il prend presque toujours la plus probable, d’où des réponses stables ; à température haute, il explore des mots moins probables : plus créatif, mais plus risqué. En pratique : proche de 0 pour extraire ou classer, plus haut pour rédiger ou chercher des idées. »',
+    source: 'Probabilités réelles : Qwen2.5-0.5B-Instruct (ONNX, fp16)',
+  },
+});
+</script>
+</body>
+</html>

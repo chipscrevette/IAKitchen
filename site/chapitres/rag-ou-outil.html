@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La fiche ou le frigo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .poste-nom { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -8px); white-space: nowrap; font: 800 var(--ws)/1 'Bricolage Grotesque';
+    color: #fff; background: var(--encre); border-radius: 8px; padding: 7px 12px 6px; letter-spacing: .04em; }
+  .poste.cliquable { cursor: pointer; }
+  .poste.cliquable:hover img { transform: scale(1.04); }
+  .poste img { transition: transform .2s; }
+  .fiche .question { margin: 10px 0 0; font: 700 var(--wm)/1.25 'Kalam', cursive; }
+  .fiche .ligne { margin: 10px 0 0; font: 600 var(--ws)/1.35 'Bricolage Grotesque'; color: var(--encre-2); }
+  .fiche .verdict { margin: 12px 0 0; font: 800 var(--ws)/1.3 'Bricolage Grotesque'; }
+  .fiche .verdict.oui { color: var(--sarcelle); } .fiche .verdict.non { color: var(--tomate); }
+  .fiche .compte { margin: 6px 0 0; font: 700 var(--ws)/1 'Bricolage Grotesque'; color: var(--encre-3); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre RAG ou outil ? · la fiche ou le frigo (storyboard, chapitre 13).
+// Trois postes : le garde-manger de bocaux (RAG : un savoir écrit, stable), la chambre froide (outil : un état qui change),
+// la balance (outil de calcul : un modèle calcule mal « de tête »). Étape finale interactive.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'RAG ou outil ?', titre: 'La fiche ou le frigo' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+const POSTES = [
+  ['bocaux', 'bocal-creme-amande', 110, 'Les fiches (RAG)', 330],
+  ['froide', 'chambre-froide', 220, 'Le stock (outil)', 800],
+  ['balance', 'balance', 200, 'Le calcul (outil)', 1260],
+];
+POSTES.forEach(([id, src, vis, nom]) => objet(id, src, larg(src, vis), `<span class="poste-nom">${nom}</span>`).classList.add('poste'));
+objet('bocal2', 'bocal-pate-sablee', larg('bocal-pate-sablee', 90));
+objet('bocal3', 'bocal-poires-pochees', larg('bocal-poires-pochees', 90));
+objet('commis', 'commis-ecoute', 180);
+objet('serveur', 'serveur-ticket', 180);
+const fiche = element('fiche');
+
+const EXEMPLES = [
+  { q: 'La tarte de la maison contient-elle des amandes ?', poste: 0, pourquoi: 'La réponse est écrite dans une fiche de la maison, et elle change rarement : on la retrouve (RAG).' },
+  { q: 'Il reste des œufs en chambre froide ?', poste: 1, pourquoi: 'Le stock change à chaque minute : aucune fiche n’est à jour. Il faut aller voir (un outil qui interroge le stock).' },
+  { q: 'Combien de farine pour 40 crêpes, si 250 g en font 10 ?', poste: 2, pourquoi: 'C’est un calcul : un modèle calcule mal de tête. On passe par un outil de calcul (1 kg).' },
+];
+const EXOS = [
+  { q: 'Quelles sont les règles d’hygiène de la maison ?', poste: 0, pourquoi: 'Un règlement écrit, stable : RAG.' },
+  { q: 'Quel temps fera-t-il samedi, pour la terrasse ?', poste: 1, pourquoi: 'Une info qui change et vient de l’extérieur : un outil (une API météo).' },
+  { q: 'Combien coûtent 12 bouteilles à 7,40 € ?', poste: 2, pourquoi: 'Un calcul : un outil (88,80 €).' },
+];
+let exo = 0, bons = 0, repondu = false;
+
+const ETAPES = [
+  { nom: 'Trois commandes', t: 'Le serveur apporte trois questions. Pour chacune, le commis doit choisir où aller chercher la réponse.', v: 'face à une question, un système d’IA peut chercher dans des documents (RAG) ou appeler un outil. Il faut choisir le bon.', ex: -1 },
+  { nom: 'La fiche', t: 'Première question.', lignes: [{ qui: 'commis', dit: '« C’est écrit dans une fiche de la maison : direction le garde-manger ! »' }], v: EXEMPLES[0].pourquoi, ex: 0 },
+  { nom: 'Le frigo', t: 'Deuxième question.', lignes: [{ qui: 'commis', dit: '« Le stock change sans arrêt : aucune fiche n’est à jour. Je vais voir ! »' }], v: EXEMPLES[1].pourquoi, ex: 1 },
+  { nom: 'La balance', t: 'Troisième question : un calcul.', lignes: [{ qui: 'commis', dit: '« De tête, je me tromperais. Je sors la balance. »' }], v: EXEMPLES[2].pourquoi, ex: 2 },
+  { nom: 'À toi', t: 'À toi : lis la question, puis clique sur le bon poste.', v: 'la règle : un savoir écrit et stable → RAG ; un état qui change ou une action → outil ; un calcul → outil de calcul.', ex: 'jeu' },
+];
+
+function afficherExo() {
+  const e = EXOS[exo];
+  fiche.innerHTML = `<p class="k">Question ${exo + 1} sur 3</p><p class="question">« ${e.q} »</p>` +
+    (repondu ? `<p class="verdict ${repondu === 'oui' ? 'oui' : 'non'}">${repondu === 'oui' ? 'Bien vu !' : 'Pas tout à fait.'}</p><p class="ligne">${e.pourquoi}</p>` : '<p class="ligne">Clique sur le bon poste.</p>') +
+    `<p class="compte">${bons} bonne${bons > 1 ? 's' : ''} réponse${bons > 1 ? 's' : ''}</p>`;
+  if (window.espacesFr) espacesFr(fiche);
+}
+function repondre(p) {
+  if (repondu) { exo = (exo + 1) % EXOS.length; repondu = false; if (exo === 0) bons = 0; POSTES.forEach(([id]) => O[id].classList.remove('choisi')); afficherExo(); return; }
+  const ok = p === EXOS[exo].poste; if (ok) bons++;
+  repondu = ok ? 'oui' : 'non';
+  POSTES.forEach(([id], i) => O[id].classList.toggle('choisi', i === EXOS[exo].poste));
+  afficherExo();
+}
+
+function monde(kk, k) {
+  const ex = ETAPES[kk].ex;
+  POSTES.forEach(([id, , , , cx], i) => {
+    poserSur(id, cx, id === 'froide' ? 700 : 690);
+    O[id].classList.toggle('choisi', typeof ex === 'number' && ex === i);
+    O[id].classList.toggle('cliquable', ex === 'jeu');
+    O[id].onclick = ex === 'jeu' ? () => repondre(i) : null;
+  });
+  poserSur('bocal2', 210, 690); poserSur('bocal3', 450, 690);
+  perso('serveur', 'serveur-ticket', 1040, 720, kk === 0);
+  const ou = typeof ex === 'number' && ex >= 0 ? [520, 1010, 1470][ex] : 1540;
+  perso('commis', ex === 1 ? 'commis-court' : ex === 0 ? 'commis-range' : 'commis-ecoute', ou, 720, kk >= 1 && kk <= 3);
+  if (kk === 0) { fiche.style.width = '480px'; fiche.innerHTML = '<p class="k">Les trois commandes</p>' + EXEMPLES.map(e => `<p class="question">« ${e.q} »</p>`).join(''); placer(fiche, 1330, 110, true, 1.5); }
+  else if (typeof ex === 'number') { fiche.style.width = '440px'; fiche.innerHTML = `<p class="k">Question ${ex + 1}</p><p class="question">« ${EXEMPLES[ex].q} »</p>`; placer(fiche, 1360, 110, true, 1.5); }
+  else { fiche.style.width = '460px'; if (k === 4 && !fiche.dataset.lance) { exo = 0; bons = 0; repondu = false; fiche.dataset.lance = 1; } afficherExo(); placer(fiche, 1360, 110, true, 1.5); }
+  if (kk !== 4) delete fiche.dataset.lance;
+}
+
+Cuisine.lancer({
+  id: 'rag-ou-outil', notion: 'RAG ou outil ?', titre: 'La fiche ou le frigo',
+  chapeau: 'Chercher dans des documents, ou appeler un outil ? La bonne réponse dépend de la question.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'mcp.html', titre: 'Chapitre suivant : MCP' },
+  recap: {
+    titre: 'La fiche, le frigo ou la balance',
+    trois: [
+      { img: 'bocal-creme-amande', t: 'RAG', d: 'Un savoir écrit et plutôt stable : procédures, fiches, contrats.' },
+      { img: 'chambre-froide', t: 'Outil', d: 'Un état qui change, ou une action à faire : stock, météo, envoi.' },
+      { img: 'balance', t: 'Calcul', d: 'Un calcul exact : on ne le demande pas « de tête » au modèle.' },
+    ],
+    entretien: '« RAG et outils répondent à des besoins différents. Le RAG sert à retrouver un savoir écrit et relativement stable dans des documents. L’appel d’outil sert quand l’information change en temps réel (stock, météo, base de données), quand il faut agir, ou pour un calcul exact. Un bon agent combine souvent les deux. »',
+    source: 'Voir les chapitres RAG et Appel d’outil',
+  },
+});
+</script>
+</body>
+</html>

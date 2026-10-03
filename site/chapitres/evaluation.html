@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La dégustation à l’aveugle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .lettre { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -6px); font: 800 var(--wm)/1 'Bricolage Grotesque'; color: #fff;
+    background: var(--encre); border-radius: 50%; width: 46px; height: 46px; display: grid; place-items: center; }
+  .grille { margin-top: 12px; display: grid; grid-template-columns: 1fr auto auto; gap: 8px 18px; align-items: baseline; }
+  .grille span { font: 700 var(--ws)/1.2 'Kalam', cursive; }
+  .grille b { font: 800 var(--ws)/1 'Bricolage Grotesque'; color: var(--encre-3); text-align: center; }
+  .grille i { font: 800 var(--wm)/1 'Bricolage Grotesque'; font-style: normal; text-align: center; }
+  .grille i.a { color: var(--sarcelle); } .grille i.b { color: var(--tomate); }
+  .fiche .ligne { margin: 10px 0 0; font: 700 var(--ws)/1.3 'Kalam', cursive; }
+  .fiche .gros { display: block; font: 800 var(--wm)/1.1 'Bricolage Grotesque'; color: var(--tomate); margin-top: 12px; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Évaluation · la dégustation à l'aveugle (storyboard, chapitre 21).
+// Sources : Chatbot Arena / LMArena (votes humains à l'aveugle, deux réponses anonymes, classement de type Elo, des millions de votes) ;
+// « The Leaderboard Illusion » (Singh et al., 2025, arXiv 2504.20879) : Meta a testé 27 variantes privées avant la sortie de Llama 4.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Évaluation', titre: 'La dégustation à l’aveugle' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('clocheA', 'cloche-fermee', larg('cloche-fermee', 240), '<span class="lettre">A</span>');
+objet('clocheB', 'cloche-fermee', larg('cloche-fermee', 240), '<span class="lettre">B</span>');
+objet('tarteA', 'tarte', larg('tarte', 240), '<span class="lettre">A</span>');
+objet('tarteB', 'tarte-pommes', larg('tarte-pommes', 240), '<span class="lettre">B</span>');
+objet('chef', 'chef-attend', 160);
+objet('patissiere', 'patissiere-attend', 160);
+objet('critique', 'critique-note', 160);
+objet('serveur', 'serveur-attend', 180);
+const fiche = element('fiche');
+
+const ETAPES = [
+  { nom: 'Deux cuisiniers', t: 'Deux cuisiniers préparent chacun leur tarte. Laquelle est la meilleure ?', lignes: [{ qui: 'chef', dit: '« La meilleure, c’est la mienne. »' }, { qui: 'patissiere', dit: '« Non, la mienne. »' }], v: 'pour choisir un modèle, ou savoir si une nouvelle version fait mieux, il faut l’évaluer. Et on ne peut pas croire le fabricant sur parole.' },
+  { nom: 'À l’aveugle', t: 'Le serveur pose les deux assiettes sous des cloches, marquées A et B.', lignes: [{ qui: 'serveur', dit: '« Personne ne sait qui a cuisiné quoi. »' }], v: 'on masque le nom du modèle pour que le juge ne soit pas influencé par la marque.' },
+  { nom: 'La grille', t: 'Le critique goûte, et note avec la même grille à chaque fois : goût, cuisson, présentation.', lignes: [{ qui: 'critique', dit: '« A : 9, 8, 8. B : 6, 7, 5. »' }], v: 'une évaluation sérieuse fixe ses critères à l’avance et les applique à toutes les réponses : exactitude, respect des consignes, ton…' },
+  { nom: 'Des milliers de dégustations', t: 'Un seul critique peut se tromper. Alors on recommence avec des milliers de clients, deux assiettes à la fois.', lignes: [{ qui: 'serveur', dit: '« Deux assiettes, un vote. Au suivant ! »' }], v: 'c’est le principe de Chatbot Arena (LMArena) : des internautes comparent deux réponses anonymes et votent. Des millions de votes donnent un classement de type Elo.' },
+  { nom: 'Le piège', t: 'Un cuisinier malin peut faire goûter 27 versions de sa tarte en cachette… et ne présenter que la meilleure.', lignes: [{ qui: 'chef', dit: '« J’en ai fait goûter 27. Je ne montre que la meilleure. »' }], v: 'un classement peut être « joué » : avant la sortie de Llama 4, Meta a testé 27 variantes privées sur l’Arena (Singh et al., 2025). D’où l’intérêt de tester soi-même, sur ses propres cas.' },
+];
+
+function monde(kk, k) {
+  perso('chef', 'chef-attend', 330, 710, kk === 0 || kk === 4);
+  perso('patissiere', 'patissiere-attend', 1180, 710, kk === 0);
+  poserSur('tarteA', 590, 690, 1, kk === 0 || kk === 2 || kk === 4);
+  poserSur('tarteB', 900, 690, 1, kk === 0 || kk === 2);
+  poserSur('clocheA', 590, 690, 1, kk === 1 || kk === 3);
+  poserSur('clocheB', 900, 690, 1, kk === 1 || kk === 3);
+  [['tarteA', 0], ['tarteB', 0], ['clocheA', 1], ['clocheB', 1]].forEach(([id]) => O[id].querySelector('.lettre').style.opacity = kk === 0 ? 0 : 1);
+  perso('serveur', 'serveur-attend', 1180, 710, kk === 1 || kk === 3);
+  perso('critique', kk === 2 ? 'critique-goute' : 'critique-note', 1180, 710, kk === 2 || kk === 4);
+  O.tarteA.classList.toggle('choisi', kk === 2);
+  if (kk === 2) {
+    fiche.style.width = '420px';
+    fiche.innerHTML = '<p class="k">La grille du critique</p><p class="t">Même grille pour A et B</p><div class="grille"><span></span><b>A</b><b>B</b>' +
+      '<span>Goût</span><i class="a">9</i><i class="b">6</i><span>Cuisson</span><i class="a">8</i><i class="b">7</i><span>Présentation</span><i class="a">8</i><i class="b">5</i></div>';
+    placer(fiche, 1370, 130, true, 1.5);
+  } else if (kk === 3) {
+    fiche.style.width = '400px';
+    fiche.innerHTML = '<p class="k">Chatbot Arena · LMArena</p><p class="t">Deux réponses anonymes, un vote</p><p class="ligne">Des millions de votes, deux par deux, donnent le classement des modèles.</p>';
+    placer(fiche, 1370, 130, true, 1.5);
+  } else if (kk === 4) {
+    fiche.style.width = '400px';
+    fiche.innerHTML = '<p class="k">Le piège du classement</p><p class="t">Goûter en cachette</p><span class="gros">27 versions</span><p class="ligne">testées en privé par Meta avant Llama 4 (Singh et al., 2025)</p>';
+    placer(fiche, 1370, 130, true, 1.5);
+  } else placer(fiche, 1370, 130, false);
+}
+
+Cuisine.lancer({
+  id: 'evaluation', notion: 'Évaluation', titre: 'La dégustation à l’aveugle',
+  chapeau: 'Comment savoir si une IA est bonne, sans croire le fabricant sur parole.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'temoin.html', titre: 'Chapitre suivant : deux salles, une seule change' },
+  recap: {
+    titre: 'Évaluer, c’est goûter à l’aveugle',
+    trois: [
+      { img: 'cloche-fermee', t: 'À l’aveugle', d: 'On cache le nom du modèle pour ne juger que la réponse.' },
+      { img: 'critique-note', t: 'Une grille', d: 'Des critères fixés à l’avance, les mêmes pour tous.' },
+      { img: 'tarte', t: 'Ses propres cas', d: 'Les classements publics se jouent : on teste sur ses vrais usages.' },
+    ],
+    entretien: '« Évaluer un modèle, c’est comparer ses réponses sur un jeu de cas représentatif, avec des critères fixés à l’avance, idéalement à l’aveugle. Les classements publics comme Chatbot Arena reposent sur des millions de votes humains, mais ils peuvent être optimisés par les fabricants ; pour un projet, on construit sa propre évaluation sur ses vrais cas d’usage, et on la relance à chaque changement. »',
+    source: 'Sources : <a href="https://lmarena.ai/" target="_blank" rel="noopener">LMArena</a> · <a href="https://arxiv.org/abs/2504.20879" target="_blank" rel="noopener">Singh et al., 2025, The Leaderboard Illusion</a>',
+  },
+});
+</script>
+</body>
+</html>

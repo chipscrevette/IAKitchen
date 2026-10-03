@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le stage chez la pâtissière</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche .ligne { margin: 10px 0 0; font: 700 var(--ws)/1.3 'Kalam', cursive; }
+  .fiche .ligne b { font: 800 var(--ws)/1.2 'Bricolage Grotesque'; display: block; }
+  .fiche .gros { font: 800 var(--wm)/1.1 'Bricolage Grotesque'; font-variant-numeric: tabular-nums; }
+  .fiche .gros.s { color: var(--sarcelle); }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+  .compare > div { background: var(--creme); border-radius: 12px; padding: 14px 16px; }
+  .compare b { display: block; font: 800 var(--ws)/1.2 'Bricolage Grotesque'; color: var(--tomate); letter-spacing: .06em; text-transform: uppercase; }
+  .compare p { margin: 6px 0 0; font: 700 var(--ws)/1.3 'Kalam', cursive; }
+  .compare p.pour { font-family: 'Bricolage Grotesque'; font-weight: 600; color: var(--encre-2); }
+  .barres { margin-top: 12px; display: grid; gap: 8px; }
+  .barres div { height: 22px; border-radius: 6px; background: var(--tomate); }
+  .barres div.lora { width: 3px; background: var(--sarcelle); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Fine-tuning · le stage chez le pâtissier.
+// Données réelles : LoRA (Hu et al. 2021, arXiv 2106.09685) entraîne 10 000 fois moins de paramètres que le fine-tuning complet de GPT-3 175B,
+// avec 3 fois moins de mémoire GPU.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Fine-tuning', titre: 'Le stage chez la pâtissière' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('tartePommes', 'tarte-pommes', larg('tarte-pommes', 190));
+objet('gateau', 'gateau', larg('gateau', 170));
+objet('pile', 'pile-livres', larg('pile-livres', 150));
+objet('carnet', 'carnet', larg('carnet', 150), '<span class="etiq">carnet de stage</span>');
+objet('chef', 'chef-attend', 160);
+objet('patronne', 'patronne-lit', 160);
+objet('patissiere', 'patissiere-poche', 160);
+const fiche = element('fiche'), style = element('fiche');
+
+const ETAPES = [
+  { nom: 'La demande', lignes: [{ qui: 'patronne', dit: '« À partir d’aujourd’hui : tous les desserts dans le style de la maison. »' }, { dit: 'Le chef, lui, fait des desserts de partout.' }], v: 'un modèle généraliste a un style moyen : celui de tout ce qu’il a lu.' },
+  { nom: 'La fiche', t: 'Première solution : une fiche.', lignes: [{ qui: 'patronne', dit: '« Tiens, la fiche du style maison. À chaque commande. »' }, { dit: 'Ça marche… tant qu’on n’oublie pas la fiche.' }], v: 'c’est le prompt (ou le RAG) : on ajoute consignes et exemples à chaque demande. Simple, mais ça coûte des tokens à chaque fois.' },
+  { nom: 'Le stage', t: 'Deuxième solution : un stage chez la pâtissière.', lignes: [{ qui: 'patissiere', dit: '« On refait celui-ci. Et encore une fois. »' }, { dit: 'Des centaines d’exemples, jusqu’à ce que le geste devienne naturel.' }], v: 'c’est le fine-tuning : on continue l’entraînement du modèle sur des exemples « demande → réponse attendue ». Ses réglages internes changent.' },
+  { nom: 'Au retour', t: 'De retour, il fait le style maison sans regarder de fiche.', lignes: [{ qui: 'chef', dit: '« Le style maison, je l’ai dans les mains. »' }], v: 'style, format, ton, vocabulaire métier : c’est ce que le fine-tuning apprend le mieux.' },
+  { nom: 'Le carnet', t: 'Dans sa poche, un petit carnet.', lignes: [{ qui: 'chef', dit: '« Je n’ai pas tout réappris : j’ai juste noté mes ajustements. »' }], v: 'c’est LoRA : on n’entraîne qu’une petite couche d’ajustements. Sur GPT-3 (175 milliards de réglages), 10 000 fois moins de paramètres à entraîner, et 3 fois moins de mémoire (Hu et al., 2021).' },
+  { nom: 'Stage ou fiche ?', lignes: [{ qui: 'patronne', dit: '« Ce qui change souvent, sur la fiche. Ce qui ne change pas, en stage. »' }], v: 'le fine-tuning n’est pas fait pour ajouter des faits frais : il peut les mélanger. On essaie d’abord le prompt, puis le RAG, puis le fine-tuning.' },
+];
+
+function monde(kk, k) {
+  // 0 la demande de la patronne · 1 la fiche épinglée · 2 le stage chez la pâtissière · 3 le retour · 4 le carnet · 5 stage ou fiche
+  const pose = kk === 2 ? 'chef-etudie' : kk === 3 || kk === 4 ? 'chef-diplome' : kk === 1 ? 'chef-cuisine' : 'chef-attend';
+  perso('chef', pose, kk === 2 ? 820 : 760, 700);
+  perso('patronne', kk === 3 || kk === 5 ? 'patronne-signe' : 'patronne-lit', 400, 700, kk !== 2 && kk !== 4);
+  perso('patissiere', 'patissiere-poche', 1110, 700, kk === 2);
+  poserSur('tartePommes', 1030, 690, 1, kk === 0);
+  poserSur('gateau', 1030, 690, 1, kk === 1 || kk === 5);   // au retour, le gâteau est dans les mains du chef (pose chef-diplome)
+  poserSur('pile', 560, 700, 1, kk === 2);
+  poserSur('carnet', 1030, 690, 1, kk === 4);
+  Cuisine.O.carnet.classList.toggle('choisi', kk === 4);
+  // la fiche du style maison, épinglée par la patronne à côté du chef
+  if (kk === 1) { style.style.width = '300px'; style.innerHTML = '<p class="k">Fiche · style maison</p><p class="t">Chantilly, fruits rouges, génoise légère</p>'; placer(style, 900, 130, true, 2); }
+  else placer(style, 900, 130, false);
+  if (kk === 2) { fiche.style.width = '400px'; fiche.innerHTML = '<p class="k">Le stage</p><p class="t">Des centaines d\u2019exemples</p><p class="ligne"><b>Commande : « un dessert d\u2019anniversaire »</b>→ génoise, chantilly, fraises</p><p class="ligne"><b>Commande : « un dessert léger »</b>→ fruits rouges, chantilly</p><p class="ligne"><b>…et ainsi de suite</b></p>'; placer(fiche, 1360, 150, true, 1.5); }
+  else if (kk === 4) { fiche.style.width = '440px'; fiche.innerHTML = '<p class="k">Ce qu\u2019on entraîne</p><p class="ligne"><b>Tout le savoir-faire du chef</b><span class="gros">175 milliards</span> de réglages</p><div class="barres"><div></div></div><p class="ligne"><b>Le carnet de stage (LoRA)</b><span class="gros s">10 000 fois moins</span></p><div class="barres"><div class="lora"></div></div>'; placer(fiche, 1340, 150, true, 1.5); }
+  else if (kk === 5) { fiche.style.width = '560px'; fiche.innerHTML = '<p class="k">Que choisir ?</p><p class="t">Stage ou fiche ?</p><div class="compare"><div><b>La fiche</b><p class="pour">prompt, RAG</p><p>Ce qui change souvent : le stock, les prix, le règlement.</p></div><div><b>Le stage</b><p class="pour">fine-tuning</p><p>Un savoir-faire stable : un style, un format, un ton.</p></div></div>'; placer(fiche, 1240, 150, true, 1); }
+  else placer(fiche, 1360, 150, false);
+}
+
+Cuisine.lancer({
+  id: 'finetuning', notion: 'Fine-tuning', titre: 'Le stage chez la pâtissière',
+  chapeau: 'Quand faut-il réentraîner une IA, et quand suffit-il de lui donner la bonne fiche ?',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'contexte.html', titre: 'Chapitre suivant : la fenêtre de contexte' },
+  recap: {
+    titre: 'Le fine-tuning, c’est un stage',
+    trois: [
+      { img: 'livre', t: 'S’entraîner', d: 'On continue l’entraînement sur des exemples : le modèle change pour de bon.' },
+      { img: 'gateau', t: 'Un savoir-faire', d: 'Style, format, ton : appris une fois, sans fiche à chaque demande.' },
+      { img: 'carnet', t: 'LoRA', d: 'On n’entraîne qu’un petit carnet d’ajustements : bien moins cher.' },
+    ],
+    entretien: '« Le fine-tuning continue l’entraînement d’un modèle sur des exemples demande → réponse, pour lui apprendre un comportement stable : un style, un format, un vocabulaire. Pour des faits qui changent, on préfère le RAG. En pratique, on essaie d’abord le prompt, puis le RAG, et on fine-tune si ça ne suffit pas, souvent avec LoRA, qui n’entraîne qu’une petite partie des paramètres. »',
+    source: 'Source : <a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener">Hu et al., 2021, LoRA</a>',
+  },
+});
+</script>
+</body>
+</html>

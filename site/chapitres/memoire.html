@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le carnet des habitués</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche .ligne { margin: 10px 0 0; font: 700 var(--ws)/1.35 'Kalam', cursive; }
+  .fiche .ligne b { font: 800 var(--ws)/1.2 'Bricolage Grotesque'; }
+  .fiche .ligne.neuf { background: var(--ruban); border-radius: 4px; padding: 2px 6px; }
+  .fiche .barre { text-decoration: line-through; color: var(--encre-3); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Mémoire longue · le carnet des habitués (storyboard, chapitre 18).
+// Le plateau du chef (la fenêtre de contexte) est vidé à chaque service ; ce qui doit durer est écrit dans un carnet
+// qu'on relit au service suivant. Source : OpenAI, « Memory and new controls for ChatGPT » (2024).
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Mémoire longue', titre: 'Le carnet des habitués' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('plateau', 'plateau', 520);
+objet('carnet', 'carnet', larg('carnet', 150), '<span class="etiq">carnet des habitués</span>');
+objet('citron', 'citron', larg('citron', 70));
+objet('tarte', 'tarte', larg('tarte', 170));
+objet('chef', 'chef-attend', 160);
+objet('serveur', 'serveur-ticket', 180);
+const fiche = element('fiche');
+
+const ETAPES = [
+  { nom: 'Le retour d’un habitué', lignes: [{ qui: 'serveur', dit: '« Table 2, M. Martin. Comme d’habitude ! »' }, { dit: 'Le chef le voit tous les mardis.' }], v: 'l’utilisateur revient, et s’attend à ce qu’on se souvienne de lui.' },
+  { nom: 'Le plateau est vide', t: 'Mais le plateau du chef est vidé à chaque service. De M. Martin, il ne reste rien.', lignes: [{ qui: 'chef', dit: '« M. Martin… qui déjà ? »' }], v: 'un modèle n’a pas de mémoire entre deux conversations : sa fenêtre de contexte repart de zéro.' },
+  { nom: 'Le carnet', t: 'Alors le chef tient un carnet des habitués. Il l’ouvre.', lignes: [{ qui: 'chef', dit: '« Martin : sans gluten, adore le citron. »' }], v: 'la mémoire longue, c’est un stockage à part : l’application y écrit des faits utiles, et les remet dans le contexte au bon moment.' },
+  { nom: 'Servi comme il aime', t: 'Il pose la note sur son plateau.', lignes: [{ qui: 'chef', dit: '« Sans gluten, avec du citron : voilà, M. Martin. »' }], v: 'au début de la conversation, les souvenirs utiles sont recopiés dans la fenêtre de contexte. Le modèle, lui, n’a rien appris.' },
+  { nom: 'Noter l’utile', t: 'À la fin du service, il met le carnet à jour, et raye ce qui n’est plus vrai.', lignes: [{ qui: 'chef', dit: '« Le mardi, c’est fini : maintenant, c’est le jeudi. »' }], v: 'on choisit quoi retenir, on corrige ce qui a changé, et on laisse l’utilisateur voir et effacer ses souvenirs (comme la mémoire de ChatGPT).' },
+];
+
+function monde(kk, k) {
+  const sol = Cuisine.solPlateau(500, 330, 520);
+  poser('plateau', 500, 330);
+  perso('chef', kk === 3 ? 'chef-cuisine' : kk === 4 ? 'chef-attend' : 'chef-attend', 1170, 710);
+  perso('serveur', 'serveur-ticket', 1420, 710, kk === 0);
+  poserSur('carnet', kk >= 3 ? (sol.x0 + sol.x1) / 2 - 60 : 330, kk >= 3 ? sol.y1 - 10 : 700, kk >= 3 ? .8 : 1, kk >= 2);
+  O.carnet.classList.toggle('choisi', kk === 2);
+  poserSur('citron', 1560, 700, 1, kk === 3);   // le zeste pour M. Martin, à côté de l'assiette
+  poserSur('tarte', 1420, 700, 1, kk === 3);
+  if (kk === 2 || kk === 4) {
+    fiche.style.width = '380px';
+    fiche.innerHTML = '<p class="k">Carnet des habitués</p><p class="t">M. Martin, table 2</p>' +
+      '<p class="ligne">Sans gluten</p><p class="ligne">Adore le citron</p>' +
+      (kk === 4 ? '<p class="ligne"><span class="barre">Vient le mardi</span></p><p class="ligne neuf">Vient maintenant le jeudi</p>' : '<p class="ligne">Vient le mardi</p>');
+    placer(fiche, 1330, 110, true, 1.5);
+  } else placer(fiche, 1330, 110, false);
+}
+
+Cuisine.lancer({
+  id: 'memoire', notion: 'Mémoire longue', titre: 'Le carnet des habitués',
+  chapeau: 'Comment une IA « se souvient » de toi d’une conversation à l’autre, alors qu’elle oublie tout.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'brigade.html', titre: 'Chapitre suivant : la brigade' },
+  recap: {
+    titre: 'La mémoire longue, c’est un carnet',
+    trois: [
+      { img: 'plateau', t: 'Le plateau se vide', d: 'Chaque conversation repart d’une fenêtre de contexte vide.' },
+      { img: 'carnet', t: 'Le carnet', d: 'Les faits utiles sont stockés à part, puis recopiés dans le contexte.' },
+      { img: 'chef-cuisine', t: 'Rien n’est appris', d: 'Le modèle ne change pas : on lui relit ses notes à chaque fois.' },
+    ],
+    entretien: '« Un LLM n’a pas de mémoire entre deux conversations : sa fenêtre de contexte repart de zéro. La mémoire longue est un stockage externe : l’application y enregistre des faits utiles sur l’utilisateur, puis les réinjecte dans le contexte quand c’est pertinent, souvent via une recherche comme en RAG. Il faut choisir quoi retenir, mettre à jour, et laisser l’utilisateur contrôler ce qui est gardé. »',
+    source: 'Source : <a href="https://openai.com/index/memory-and-new-controls-for-chatgpt/" target="_blank" rel="noopener">OpenAI, Memory and new controls for ChatGPT (2024)</a>',
+  },
+});
+</script>
+</body>
+</html>

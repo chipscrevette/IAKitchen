@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La recette qui se devine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .recette { margin: 10px 0 0; font: 700 var(--wm)/1.35 'Kalam', cursive; }
+  .recette .neuf { background: var(--ruban); border-radius: 4px; padding: 0 6px; }
+  .recette .blanc { display: inline-block; width: 70px; border-bottom: 3px dashed var(--encre-3); }
+  .recette .oe { font-family: 'Bricolage Grotesque'; font-weight: 700; font-size: .92em; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Le mot suivant · la recette qui se devine (storyboard, chapitre 1).
+// Vraies probabilités : Qwen2.5-0.5B-Instruct (fp16), mot complet après « Recette de la pâte à crêpes. Ingrédients : farine, œufs, »
+// puis en ajoutant à chaque tour l'ingrédient le plus probable (outils/calculs/motsuivant.mjs). Ce petit modèle oublie le lait.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Le mot suivant', titre: 'La recette qui se devine' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+// les 4 candidats posés sur le plan, et leurs vraies chances à chaque tour (sur tout le vocabulaire : le reste va à d'autres mots)
+const CAND = [['lait', 'brique-lait', 70], ['sucre', 'paquet-sucre', 92], ['beurre', 'beurre', 110], ['sel', 'saliere', 52]];
+const TOURS = [
+  { choix: 'sucre', p: { lait: .0226, sucre: .2157, beurre: .1004, sel: .1035 } },
+  { choix: 'beurre', p: { lait: .0210, sucre: .0287, beurre: .1415, sel: .1222 } },
+  { choix: 'sel', p: { lait: .0149, sucre: .0316, beurre: .0487, sel: .2018 } },
+];
+objet('farine', 'sac-farine', larg('sac-farine', 110));
+objet('oeufs', 'oeufs', larg('oeufs', 110));
+objet('saladier', 'saladier', larg('saladier', 250));
+CAND.forEach(([n, src, vis], i) => objet(n, src, larg(src, vis), `<span class="etiq" style="--r:${[-2, 1.5, -1, 2][i]}deg">${n}</span><span class="score cache"></span>`));
+objet('chef', 'chef-attend', 160);
+objet('critique', 'critique-note', 160);
+const fiche = element('fiche');
+
+// où va chaque ingrédient une fois ajouté : à côté du saladier, avec la farine et les œufs
+const UTILISE = { sucre: [455, 470], beurre: [845, 470], sel: [945, 470] };
+const DEVANT = { lait: 380, sucre: 530, beurre: 690, sel: 850 };
+const pctTxt = p => (p * 100 < 10 ? (p * 100).toFixed(1) : Math.round(p * 100)).toString().replace('.', ',') + ' %';
+
+const ETAPES = [
+  { nom: 'La recette entamée', t: 'Le chef a lu des millions de recettes. On lui donne le début d’une liste : à lui de deviner la suite.', lignes: [{ qui: 'chef', dit: '« Farine, œufs… Qu’est-ce qui vient après, d’habitude ? »' }], v: 'un modèle de langage ne « comprend » pas : il prédit le mot suivant, d’après tout ce qu’il a lu.' },
+  { nom: 'Les chances', t: 'Pour chaque ingrédient possible, il a une idée de ses chances.', lignes: [{ qui: 'chef', dit: '« Le sucre, surtout. Le sel ou le beurre, un peu. Le lait ? Presque jamais. »' }], v: 'le modèle calcule une probabilité pour chacun des 151 936 tokens de son vocabulaire. Ces pourcentages sont les vrais (Qwen2.5-0.5B) ; le reste va à d’autres mots.' },
+  { nom: 'Il choisit', t: 'Il prend le plus probable, et l’ajoute à la recette.', lignes: [{ qui: 'chef', dit: '« Va pour le sucre. »' }], v: 'le mot choisi est ajouté au texte. (Choisir toujours le premier, ou tirer au sort : c’est la température.)' },
+  { nom: 'Et recommence', t: 'La recette a grandi : il recalcule toutes les chances.', lignes: [{ qui: 'chef', dit: '« Après le sucre… le beurre. »' }], v: 'à chaque mot ajouté, le modèle relit tout le début et recalcule les chances du suivant.' },
+  { nom: 'Encore', t: 'Encore un tour. Mot après mot, la recette s’écrit toute seule.', lignes: [{ qui: 'chef', dit: '« Et une pincée de sel. »' }], v: 'c’est la génération « autorégressive » : un token à la fois, jusqu’au point final.' },
+  { nom: 'Le lait oublié', t: 'Le critique relit la recette.', lignes: [{ qui: 'critique', dit: '« Et le lait ? »', tampon: 'OUBLIÉ' }, { qui: 'chef', dit: '« Le lait ? Il n’a jamais dépassé 2 %… »' }, { dit: 'Le chef a écrit la suite la plus probable, pas la bonne.' }], v: 'le plus probable n’est pas toujours le vrai. C’est aussi d’où viennent les hallucinations.' },
+];
+
+function recette(tour, nouveau) {
+  const ajoutes = TOURS.slice(0, tour).map(t => t.choix);
+  return `<p class="k">Recette de la pâte à crêpes</p><p class="recette">farine, <span class="oe">œ</span>ufs, ${ajoutes.map((a, i) => i === ajoutes.length - 1 && nouveau ? `<span class="neuf">${a}</span>` : a).join(', ')}${ajoutes.length ? ', ' : ''}<span class="blanc"></span></p>`;
+}
+
+function monde(kk, k) {
+  // ajoutes : combien d'ingrédients sont déjà dans la recette ; tour : quelles chances sont affichées (celles du dernier choix)
+  const ajoutes = [0, 0, 1, 2, 3, 3][kk], tour = [-1, 0, 0, 1, 2, -1][kk], dernier = kk >= 2 && kk <= 4 ? TOURS[kk - 2].choix : null;
+  poserSur('farine', 245, 470); poserSur('oeufs', 350, 470);
+  poserSur('saladier', 650, 560);
+  CAND.forEach(([n]) => {
+    const pris = TOURS.slice(0, ajoutes).some(t => t.choix === n);
+    if (pris) poserSur(n, UTILISE[n][0], UTILISE[n][1], .9); else poserSur(n, DEVANT[n], 720);
+    const sc = O[n].querySelector('.score');
+    // la chance reste écrite sur les ingrédients encore en jeu, et sur celui qu'on vient de prendre
+    const montre = tour >= 0 && (!pris || n === dernier);
+    sc.classList.toggle('cache', !montre);
+    if (montre) { const t = TOURS[tour]; sc.textContent = pctTxt(t.p[n]); sc.classList.toggle('top', n === t.choix); }
+    O[n].classList.toggle('choisi', (kk === 1 && n === 'sucre') || n === dernier || (kk === 5 && n === 'lait'));
+  });
+  perso('chef', kk >= 2 && kk <= 4 ? 'chef-sale' : kk === 5 ? 'chef-improvise' : 'chef-attend', 1085, 700);
+  perso('critique', 'critique-note', 1330, 700, kk === 5);
+  fiche.style.width = '420px'; fiche.innerHTML = recette(ajoutes, kk >= 2 && kk <= 4); placer(fiche, 130, 90, true, -1.5);
+}
+
+Cuisine.lancer({
+  id: 'motsuivant', notion: 'Le mot suivant', titre: 'La recette qui se devine',
+  chapeau: 'Ce que fait vraiment un modèle de langage : il devine la suite, un mot à la fois.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'token.html', titre: 'Chapitre suivant : le token' },
+  recap: {
+    titre: 'Un LLM, c’est un chef qui devine la suite',
+    trois: [
+      { img: 'paquet-sucre', t: 'Deviner', d: 'Pour chaque suite possible, une probabilité, apprise dans ce qu’il a lu.' },
+      { img: 'saladier', t: 'Ajouter', d: 'Le mot choisi rejoint le texte.' },
+      { img: 'chef-improvise', t: 'Recommencer', d: 'Mot après mot. Le plus probable, pas forcément le vrai.' },
+    ],
+    entretien: '« Un LLM est un modèle entraîné à prédire le token suivant. À chaque étape, il calcule une probabilité pour chaque token de son vocabulaire, en choisit un, l’ajoute au texte et recommence : c’est la génération autorégressive. Il produit la suite la plus plausible d’après ses données, ce qui n’est pas toujours la bonne réponse. »',
+    source: 'Probabilités réelles : Qwen2.5-0.5B-Instruct (ONNX, fp16)',
+  },
+});
+</script>
+</body>
+</html>

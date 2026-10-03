@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La recette ou le chef de partie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .etapes { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .etapes li { font: 700 var(--ws)/1.3 'Kalam', cursive; padding-left: 34px; position: relative; }
+  .etapes li::before { content: attr(data-n); position: absolute; left: 0; top: -2px; width: 24px; height: 24px; border-radius: 50%; background: var(--creme);
+    font: 800 15px/24px 'Bricolage Grotesque'; text-align: center; color: var(--encre-2); }
+  .etapes li.fait::before { background: var(--sarcelle); color: #fff; content: '\2713'; }
+  .etapes li.bloque { color: var(--tomate); }
+  .etapes li.bloque::before { background: var(--tomate); color: #fff; content: '!'; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Workflow ou agent · la recette ou le chef de partie (storyboard, chapitre 17).
+// Source : Anthropic, « Building effective agents » : un workflow suit un chemin écrit d'avance dans le code ;
+// un agent dirige lui-même ses étapes et ses outils. Conseil : commencer simple, n'ajouter de l'autonomie que si elle sert.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Workflow ou agent', titre: 'La recette ou le chef de partie' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('feu', 'feu-doux', 340);
+objet('poele', 'poele', 470);
+objet('four', 'four', larg('four', 220));
+objet('oeufs', 'oeufs', larg('oeufs', 90));
+objet('fouet', 'fouet', larg('fouet', 170));
+objet('saladier', 'saladier', larg('saladier', 170));
+objet('commis', 'commis-lit', 180);
+objet('chef', 'chef-attend', 160);
+const fiche = element('fiche');
+
+// la poêle SUR le feu (géométrie mesurée des images)
+const FEU_X = 900, FEU_Y = 520;
+function centrer(id, [x0, x1, bas, W], largeur, dy = 0) {
+  const k = largeur / (x1 - x0), cx = (x0 + x1) / 2 * k, cy = (bas - .405 * (x1 - x0)) * k;
+  O[id].style.width = W * k + 'px'; poser(id, FEU_X - cx, FEU_Y - cy + dy);
+}
+function feu(allume) {
+  const src = allume ? 'feu-doux' : 'feu-eteint', i = O.feu.querySelector('img');
+  if (i.getAttribute('src') !== Cuisine.A(src)) i.setAttribute('src', Cuisine.A(src));
+  centrer('feu', allume ? [12, 890, 874, 900] : [53, 851, 791, 860], 300);
+}
+const recette = etat => '<p class="k">La recette · omelette</p><ol class="etapes">' +
+  ['Casser 3 œufs dans le saladier', 'Battre au fouet', 'Cuire à la poêle, feu moyen'].map((t, i) => `<li data-n="${i + 1}" class="${etat[i] || ''}">${t}</li>`).join('') + '</ol>';
+
+const ETAPES = [
+  { nom: 'La recette', t: 'Le commis suit la recette de l’omelette, étape par étape, dans l’ordre écrit.', lignes: [{ qui: 'commis', dit: '« Étape 1 : casser 3 œufs dans le saladier. »' }], v: 'c’est un workflow : le chemin est écrit d’avance dans le code. Le modèle fait chaque étape, mais ne choisit pas la suite.' },
+  { nom: 'Étape par étape', t: 'Œufs cassés, battus au fouet : tout se passe comme prévu.', lignes: [{ qui: 'commis', dit: '« Étape 2 : battre au fouet. C’est fait. »' }], v: 'pour une tâche prévisible, le workflow est simple, rapide, peu coûteux et facile à contrôler.' },
+  { nom: 'L’imprévu', t: 'Étape 3 : cuire à la poêle… mais le gaz est coupé.', lignes: [{ qui: 'commis', dit: '« La recette dit : feu moyen… et maintenant ? »', tampon: 'GAZ COUPÉ' }, { dit: 'La recette ne dit pas quoi faire. Le commis est bloqué.' }], v: 'un workflow ne sait pas gérer ce qui n’a pas été prévu.' },
+  { nom: 'Le chef de partie', t: 'Le chef de partie regarde, et décide lui-même.', lignes: [{ qui: 'chef', dit: '« Pas de gaz ? On passe au four. »' }], v: 'c’est un agent : il observe la situation et choisit lui-même la suite et ses outils.' },
+  { nom: 'Que choisir ?', t: 'La recette pour ce qui est prévisible ; le chef de partie quand la tâche est ouverte et pleine d’imprévus.', v: 'Anthropic conseille de commencer par le plus simple : un workflow suffit souvent. L’agent coûte plus cher et se surveille davantage.' },
+];
+
+function monde(kk, k) {
+  feu(kk <= 1);
+  centrer('poele', [51, 506, 505, 900], 230, -78);
+  poserSur('four', 1260, 560, 1, kk >= 3);
+  O.four.classList.toggle('choisi', kk === 3);
+  poserSur('saladier', 470, 700);
+  poserSur('oeufs', 300, 700, 1, kk === 0);
+  poserSur('fouet', 610, 715, 1, kk <= 2);
+  perso('commis', kk === 0 ? 'commis-lit' : kk === 1 ? 'commis-ecoute' : 'commis-ecoute', 1130, 720, kk <= 2 || kk === 4);
+  perso('chef', kk === 3 ? 'chef-appelle' : 'chef-attend', 1560, 720, kk >= 3);
+  if (kk <= 2) { fiche.style.width = '380px'; fiche.innerHTML = recette(kk === 0 ? [] : kk === 1 ? ['fait', 'fait'] : ['fait', 'fait', 'bloque']); placer(fiche, 150, 110, true, -1.5); }
+  else if (kk === 4) {
+    fiche.style.width = '560px';
+    fiche.innerHTML = '<p class="k">Que choisir ?</p><div class="deux-col"><div><b class="oui">La recette · workflow</b><ul><li>tâche prévisible</li><li>moins cher, plus rapide</li><li>facile à contrôler</li></ul></div>' +
+      '<div><b class="non">Le chef de partie · agent</b><ul><li>tâche ouverte, imprévus</li><li>plus cher, plus lent</li><li>à surveiller</li></ul></div></div>';
+    placer(fiche, 150, 110, true, -1);
+  } else placer(fiche, 150, 110, false);
+}
+
+Cuisine.lancer({
+  id: 'workflow', notion: 'Workflow ou agent', titre: 'La recette ou le chef de partie',
+  chapeau: 'Faut-il écrire le chemin à l’avance, ou laisser l’IA décider de ses étapes ?',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'memoire.html', titre: 'Chapitre suivant : le carnet des habitués' },
+  recap: {
+    titre: 'La recette ou le chef de partie',
+    trois: [
+      { img: 'saladier', t: 'Workflow', d: 'Un chemin écrit d’avance : fiable, rapide, peu coûteux.' },
+      { img: 'four', t: 'Agent', d: 'Il choisit la suite lui-même : utile face aux imprévus.' },
+      { img: 'chef-attend', t: 'Commencer simple', d: 'On n’ajoute de l’autonomie que si elle sert vraiment.' },
+    ],
+    entretien: '« Dans un workflow, les étapes et les outils sont fixés à l’avance dans le code ; le modèle exécute chaque étape. Dans un agent, le modèle décide lui-même de la suite en fonction de ce qu’il observe. Le workflow est plus prévisible et moins cher ; l’agent gère mieux les tâches ouvertes mais coûte plus et demande des garde-fous. Anthropic recommande de commencer par la solution la plus simple. »',
+    source: 'Source : <a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" rel="noopener">Anthropic, Building effective agents</a>',
+  },
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le milieu du plateau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  #bonne .etiq { white-space: nowrap; max-width: none; }   /* une seule étiquette dans la rangée : elle garde sa ligne */
+  .pos { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -4px); font: 800 var(--ws)/1 'Bricolage Grotesque'; color: var(--encre-3); }
+  .ram.cible { cursor: pointer; }
+  .ram.cible:hover .pos { color: var(--tomate); }
+  .fiche .score-grand { font: 800 var(--wl)/1 'Bricolage Grotesque'; color: var(--tomate); margin: 10px 0 0; }
+  .fiche .score-grand.s { color: var(--sarcelle); }
+  .fiche .ligne { margin: 6px 0 0; font: 700 var(--ws)/1.35 'Kalam', cursive; }
+  .fiche svg { display: block; margin-top: 6px; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Lost in the middle · le milieu du plateau (storyboard, chapitre 8).
+// Données réelles : Liu et al., 2023, « Lost in the Middle », tableau 6 : GPT-3.5-Turbo, 20 documents dont un seul contient la réponse.
+// Bonnes réponses selon la place de ce document : 1er 75,8 % · 5e 57,2 % · 10e 53,8 % · 15e 55,4 % · 20e 63,2 % ; sans aucun document : 56,1 %.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Lost in the middle', titre: 'Le milieu du plateau' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+const MESURES = { 1: 75.8, 5: 57.2, 10: 53.8, 15: 55.4, 20: 63.2 }, SANS = 56.1;
+const AUTRES = ['ramequin-sel', 'ramequin-sucre', 'ramequin-herbes', 'ramequin-vide'];
+for (let i = 0; i < 20; i++) objet('r' + i, AUTRES[i % 4], larg('ramequin-sel', 66), `<span class="pos">${i + 1}</span>`).classList.add('ram');
+objet('bonne', 'ramequin-paprika', larg('ramequin-paprika', 66), '<span class="etiq">la bonne épice</span>');
+objet('chef', 'chef-attend', 160);
+const fiche = element('fiche');
+let posLibre = 10;
+
+const X = i => 140 + i * 70, BAS = 330;   // la rangée de 20 places, de gauche (le début) à droite (la fin), assez serrée pour tenir à côté de l'encart
+function courbe(actif) {
+  const W = 400, H = 210, g = 40, x = p => g + (p - 1) / 19 * (W - g - 16), y = v => 30 + (80 - v) / 30 * (H - 70);
+  const pts = Object.entries(MESURES).map(([p, v]) => [+p, v]);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  [50, 60, 70, 80].forEach(v => s += `<line x1="${g}" x2="${W - 16}" y1="${y(v)}" y2="${y(v)}" stroke="#EFE6D6"/><text x="${g - 6}" y="${y(v) + 6}" text-anchor="end" font-family="Bricolage Grotesque" font-size="18" fill="#9A9186">${v}</text>`);
+  s += `<line x1="${g}" x2="${W - 16}" y1="${y(SANS)}" y2="${y(SANS)}" stroke="#9A9186" stroke-dasharray="6 5"/>`;
+  s += `<text x="${W - 18}" y="${y(SANS) + 20}" text-anchor="end" font-family="Kalam" font-weight="700" font-size="18" fill="#9A9186">sans ramequin : 56</text>`;
+  s += `<polyline points="${pts.map(([p, v]) => x(p) + ',' + y(v)).join(' ')}" fill="none" stroke="#D8432B" stroke-width="3.5" stroke-linejoin="round"/>`;
+  pts.forEach(([p, v]) => s += `<circle cx="${x(p)}" cy="${y(v)}" r="${p === actif ? 9 : 6}" fill="${p === actif ? '#2B8C83' : '#D8432B'}"/>`);
+  [['début', 1], ['milieu', 10], ['fin', 20]].forEach(([t, p]) => s += `<text x="${x(p)}" y="${H - 6}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="600" font-size="18" fill="#5E574F">${t}</text>`);
+  return s + '</svg>';
+}
+const pct = v => Math.round(v) + ' sur 100';
+
+const ETAPES = [
+  { nom: 'Vingt ramequins', t: 'Sur le long plan du chef, vingt ramequins en rang. Un seul contient la bonne épice pour la commande.', lignes: [{ qui: 'chef', dit: '« La bonne épice… elle est dans lequel ? »' }], v: 'le contexte contient 20 documents ; un seul a la réponse. C’est l’expérience de « Lost in the Middle » (Liu et al., 2023).', place: 1 },
+  { nom: 'En tête', t: 'La bonne épice est au début du rang : le chef la trouve 76 fois sur 100.', lignes: [{ qui: 'chef', dit: '« Trouvée, facile ! »' }], v: 'GPT-3.5 répond juste 75,8 % du temps quand le bon document est placé en premier.', place: 1 },
+  { nom: 'Au milieu', t: 'On la déplace au milieu du rang : le chef ne la trouve plus que 54 fois sur 100.', lignes: [{ qui: 'chef', dit: '« Elle est où, déjà… ? »' }], v: '53,8 % quand le bon document est au 10e rang sur 20.', place: 10 },
+  { nom: 'En queue', t: 'Au bout du rang, il la retrouve mieux : 63 fois sur 100.', lignes: [{ qui: 'chef', dit: '« Au bout du rang, je la vois mieux. »' }], v: '63,2 % au 20e rang : les modèles regardent surtout le début et la fin de leur contexte.', place: 20 },
+  { nom: 'Sans ramequin', t: 'Et s’il n’y avait aucun ramequin ?', lignes: [{ qui: 'chef', dit: '« Je réponds de tête, alors. »' }, { dit: '56 fois sur 100 : à peine moins bien qu’avec l’épice cachée au milieu.' }], v: 'sans aucun document, GPT-3.5 fait 56,1 % : mettre la bonne info au milieu fait moins bien que ne rien donner.', place: 0 },
+  { nom: 'À toi', t: 'À toi : clique sur un ramequin numéroté 1, 5, 10, 15 ou 20 pour y déplacer la bonne épice.', v: 'la leçon : mettre l’essentiel au début (ou à la fin), et ne pas noyer la bonne info dans un long contexte.', place: 'libre' },
+];
+
+function monde(kk, k) {
+  const place = ETAPES[kk].place === 'libre' ? posLibre : ETAPES[kk].place;
+  for (let i = 0; i < 20; i++) {
+    const o = O['r' + i], mesure = kk === 5 && MESURES[i + 1] !== undefined;
+    poserSur('r' + i, X(i), BAS, 1, place !== 0 && i + 1 !== place, kk === 4 ? .02 * i : 0);
+    o.classList.toggle('cible', mesure);
+    o.onclick = mesure ? () => { posLibre = i + 1; monde(kk, k); } : null;
+  }
+  poserSur('bonne', place ? X(place - 1) : X(9), BAS, 1, place !== 0);
+  O.bonne.classList.toggle('choisi', place !== 0 && kk >= 1);
+  perso('chef', kk === 4 ? 'chef-improvise' : kk === 2 ? 'chef-goute' : 'chef-attend', 805, 740);
+  if (kk >= 1) {
+    const v = place ? MESURES[place] : SANS;
+    fiche.style.width = '440px';
+    fiche.innerHTML = `<p class="k">${place ? 'Bonne épice au rang ' + place : 'Aucun ramequin'}</p><p class="score-grand${place === 1 ? ' s' : ''}">${pct(v)}</p><p class="ligne">fois, le chef la trouve</p>` + (kk >= 3 ? courbe(place) : '');
+    placer(fiche, 1260, 400, true, 1.5);
+  } else placer(fiche, 1260, 400, false);
+}
+
+Cuisine.lancer({
+  id: 'lost', notion: 'Lost in the middle', titre: 'Le milieu du plateau',
+  chapeau: 'Pourquoi donner plus d’informations à une IA peut la rendre moins bonne.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'embeddings.html', titre: 'Chapitre suivant : le goût en notes' },
+  recap: {
+    titre: 'Le milieu du plateau se perd',
+    trois: [
+      { img: 'ramequin-paprika', t: 'Au début', d: 'L’info placée en premier est la mieux utilisée : 76 sur 100.' },
+      { img: 'ramequin-sel', t: 'Au milieu', d: 'Noyée au milieu : 54 sur 100, moins que sans rien donner.' },
+      { img: 'plateau', t: 'Moins, mais mieux', d: 'Peu de documents, bien choisis, et l’essentiel sur les bords.' },
+    ],
+    entretien: '« Les modèles utilisent mieux l’information placée au début ou à la fin de leur contexte qu’au milieu : dans « Lost in the Middle », GPT-3.5 passe de 76 % de bonnes réponses quand le bon document est en tête à 54 % quand il est au milieu, moins que sans aucun document. D’où : peu de passages, bien classés, et les consignes clés aux extrémités. »',
+    source: 'Source : <a href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">Liu et al., 2023, Lost in the Middle</a> (tableau 6)',
+  },
+});
+</script>
+</body>
+</html>

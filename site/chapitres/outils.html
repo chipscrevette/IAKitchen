@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le tiroir à 40 ustensiles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche .ligne { margin: 8px 0 0; font: 600 var(--ws)/1.35 'Bricolage Grotesque'; color: var(--encre-2); }
+  .fiche .gros { display: block; font: 800 var(--wl)/1 'Bricolage Grotesque'; color: var(--sarcelle); margin-top: 10px; }
+  .etiq b { font-weight: 700; color: var(--encre-3); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Trop d'outils · le tiroir à 40 ustensiles (storyboard, chapitre 15).
+// Source : documentation « function calling » d'OpenAI : viser moins de 20 fonctions disponibles à la fois, la précision baisse au-delà ;
+// des noms et descriptions clairs ; charger les outils rarement utilisés à la demande.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Trop d’outils', titre: 'Le tiroir à 40 ustensiles' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+const USTENSILES = [
+  ['ecumoire', 'écumoire', 'sortir du bouillon', true], ['louche', 'louche', 'servir la soupe', true],
+  ['fouet', 'fouet', 'battre, monter', true], ['passoire', 'passoire', 'égoutter', true],
+  ['pince', 'pince', 'saisir', false], ['rape', 'râpe', 'râper', false],
+  ['econome', 'économe', 'éplucher', false], ['spatule', 'spatule', 'retourner', false],
+];
+objet('marmite', 'marmite', larg('marmite', 190));
+objet('tiroir', 'tiroir-bazar', larg('tiroir-bazar', 330));
+USTENSILES.forEach(([src, nom, usage], i) => objet(src, src, larg(src, 170), `<span class="etiq" style="--r:${[-2, 1.5, -1, 2][i % 4]}deg">${nom} <b>· ${usage}</b></span>`));
+objet('chef', 'chef-appelle', 160);
+objet('commis', 'commis-ecoute', 180);
+const fiche = element('fiche');
+
+const GRILLE = i => [330 + (i % 4) * 280, i < 4 ? 440 : 640];
+const ETAPES = [
+  { nom: 'Le tiroir', t: 'Le chef a besoin de l’écumoire. Elle est quelque part dans le tiroir, au milieu de quarante ustensiles en vrac.', lignes: [{ qui: 'chef', dit: '« Commis, l’écumoire ! »' }], v: 'on peut déclarer des dizaines d’outils à un modèle. Il doit choisir le bon à chaque fois.' },
+  { nom: 'Raté', t: 'Le commis fouille, et rapporte… la passoire. Elles se ressemblent, et rien n’est étiqueté.', lignes: [{ qui: 'chef', dit: '« Une passoire ?! »', tampon: 'RATÉ' }], v: 'trop d’outils, mal nommés ou qui se ressemblent : le modèle se trompe d’outil, ou de paramètres.' },
+  { nom: 'Étiqueter', t: 'On range : chaque ustensile à sa place, avec une étiquette qui dit à quoi il sert.', v: 'un bon outil a un nom clair et une description qui dit quand l’utiliser (et quand ne pas l’utiliser).' },
+  { nom: 'Moins, mais mieux', t: 'Au poste des sauces, on ne garde que les quatre ustensiles utiles. Le reste retourne en réserve.', v: 'OpenAI conseille de garder moins de 20 fonctions disponibles à la fois : au-delà, la précision baisse. Les autres se chargent à la demande.' },
+  { nom: 'Du premier coup', t: 'Nouvelle demande : l’écumoire. Le commis la trouve du premier coup.', lignes: [{ qui: 'chef', dit: '« Parfait, merci. »' }], v: 'peu d’outils, bien décrits, adaptés à la tâche : moins d’erreurs, et moins de tokens dépensés à lire leurs descriptions.' },
+];
+
+function monde(kk, k) {
+  poserSur('marmite', 1190, 470, 1, kk <= 1 || kk === 4);
+  poserSur('tiroir', 500, 560, 1, kk <= 1);
+  USTENSILES.forEach(([src, , , utile], i) => {
+    const [x, y] = GRILLE(i), range = kk === 2 || (kk >= 3 && utile);
+    if (kk === 1 && src === 'passoire') poserSur(src, 1000, 700, 1, true);                 // la mauvaise, rapportée par le commis
+    else if (kk === 4 && src === 'ecumoire') poserSur(src, 1160, 700, 1, true);            // la bonne, posée devant la marmite
+    else if (kk >= 3 && utile) poserSur(src, 330 + i * 270, 560, 1, true, .05 * i);        // le poste des sauces : une seule rangée
+    else poserSur(src, x, y, 1, range, .05 * i);
+    O[src].classList.toggle('sans-etiq', kk <= 1);
+    O[src].classList.toggle('choisi', kk === 4 && src === 'ecumoire');
+  });
+  perso('chef', kk === 1 ? 'chef-improvise' : kk === 4 ? 'chef-content' : 'chef-appelle', kk === 4 ? 1600 : 1420, 720);
+  perso('commis', 'commis-ecoute', kk === 4 ? 1380 : 800, 720, kk === 1 || kk === 4);
+  if (kk === 3) { fiche.style.width = '360px'; fiche.innerHTML = '<p class="k">OpenAI, function calling</p><span class="gros">moins de 20</span><p class="ligne">fonctions disponibles à la fois : au-delà, le modèle choisit moins bien.</p>'; placer(fiche, 1330, 110, true, 1.5); }
+  else placer(fiche, 1330, 110, false);
+}
+
+Cuisine.lancer({
+  id: 'trop-outils', notion: 'Trop d’outils', titre: 'Le tiroir à 40 ustensiles',
+  chapeau: 'Pourquoi brancher cent outils sur une IA la rend moins fiable, pas plus.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'agent.html', titre: 'Chapitre suivant : le coup de feu' },
+  recap: {
+    titre: 'Trop d’outils, c’est un tiroir en vrac',
+    trois: [
+      { img: 'tiroir-bazar', t: 'Le vrac', d: 'Trop d’outils qui se ressemblent : le modèle se trompe.' },
+      { img: 'ecumoire', t: 'L’étiquette', d: 'Un nom clair et une description qui dit quand s’en servir.' },
+      { img: 'louche', t: 'Le poste', d: 'Seulement les outils utiles à la tâche, les autres à la demande.' },
+    ],
+    entretien: '« Plus on donne d’outils à un modèle, plus il risque de choisir le mauvais ou de mal remplir ses paramètres, et plus les descriptions coûtent de tokens. OpenAI conseille de rester sous 20 fonctions disponibles à la fois. Les bonnes pratiques : des noms et descriptions précis, des outils qui ne se chevauchent pas, et un chargement à la demande des outils rarement utiles. »',
+    source: 'Source : <a href="https://developers.openai.com/api/docs/guides/function-calling" target="_blank" rel="noopener">OpenAI, Function calling</a>',
+  },
+});
+</script>
+</body>
+</html>

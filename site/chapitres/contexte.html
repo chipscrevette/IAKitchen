@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le plateau qui déborde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  #ticket .sur-ticket { top: 27%; }
+  #poubelle { z-index: 1; }
+  #ticket { z-index: 2; }
+  #ticket.dans-poubelle { z-index: 0; }
+  .ordre { position: absolute; left: 50%; top: 100%; transform: translate(-50%, 8px); font: 800 var(--ws)/1 'Bricolage Grotesque';
+    color: #fff; background: var(--encre); border-radius: 999px; padding: 5px 10px 4px; white-space: nowrap; transition: opacity .4s; }
+  .fiche svg { display: block; }
+  .terne-img img { opacity: .28; filter: saturate(.3); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Fenêtre de contexte · le plateau qui déborde.
+// Le plateau du chef = la fenêtre de contexte : tout ce qu'il a sous les yeux. Le ticket d'allergie = une consigne du début.
+// Données réelles : Liu et al. 2023, « Lost in the Middle », tableau 6 (GPT-3.5-Turbo, 20 documents).
+const { objet, element, poser, poserSur, perso, solPlateau, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Fenêtre de contexte', titre: 'Le plateau qui déborde' });
+
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);   // largeur d'image pour une silhouette de « vis » px
+const ING = ['tomate', 'oignon', 'citron', 'fromage', 'oeufs', 'beurre', 'carotte', 'saliere'];
+
+objet('poubelle', 'seau-compost', 250);   // le seau à compost, posé contre le bord gauche du plateau
+objet('plateau', 'plateau', 900);
+objet('ticket', 'ticket', larg('ticket', 100), `<div class="sur-ticket">Table 4 : allergie aux fruits à coque</div><span class="ordre cache">1er</span>`);
+ING.forEach(n => objet(n, n, larg(n, n === 'carotte' ? 92 : 76), `<span class="ordre cache"></span>`));
+objet('chef', 'chef-attend', 160);
+objet('serveur', 'serveur-ticket', 180);
+objet('tarte', 'tarte', larg('tarte', 190));
+const fiche = element('fiche');
+
+// le fond du plateau (mesuré) : 8 places sur une rangée, de gauche (le plus ancien) à droite (le plus récent)
+const SOL = solPlateau(300, 250, 900), BASE = 598;
+const place = k => SOL.x0 + 48 + k * (SOL.x1 - SOL.x0 - 96) / 7;
+
+// la courbe en U de « Lost in the Middle » : position de l'info utile parmi 20 documents → bonnes réponses
+const LIM = [[1, 75.8], [5, 57.2], [10, 53.8], [15, 55.4], [20, 63.2]], SANS = 56.1;
+function courbe() {
+  const W = 440, H = 270, g = 46, x = p => g + (p - 1) / 19 * (W - g - 20), y = v => 46 + (80 - v) / 30 * (H - 96);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  [50, 60, 70, 80].forEach(v => s += `<line x1="${g}" x2="${W - 20}" y1="${y(v)}" y2="${y(v)}" stroke="#EFE6D6"/><text x="${g - 8}" y="${y(v) + 6}" text-anchor="end" font-family="Bricolage Grotesque" font-size="18" fill="#9A9186">${v}</text>`);
+  s += `<line x1="${g}" x2="${W - 20}" y1="${y(SANS)}" y2="${y(SANS)}" stroke="#9A9186" stroke-dasharray="6 5"/>`;
+  s += `<line x1="${W - 210}" x2="${W - 180}" y1="14" y2="14" stroke="#9A9186" stroke-dasharray="6 5"/><text x="${W - 172}" y="20" font-family="Kalam" font-weight="700" font-size="18" fill="#9A9186">sans document : 56</text>`;
+  s += `<polyline points="${LIM.map(([p, v]) => x(p) + ',' + y(v)).join(' ')}" fill="none" stroke="#D8432B" stroke-width="3.5" stroke-linejoin="round"/>`;
+  LIM.forEach(([p, v]) => s += `<circle cx="${x(p)}" cy="${y(v)}" r="6" fill="#D8432B"/><text x="${x(p)}" y="${y(v) - 13}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="18" fill="#2A2A2E">${Math.round(v)}</text>`);
+  [['début', 1], ['milieu', 10], ['fin', 20]].forEach(([t, p]) => s += `<text x="${x(p)}" y="${H - 8}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="600" font-size="18" fill="#5E574F">${t}</text>`);
+  return s + '</svg>';
+}
+
+const CAM = [120, 90, 1260, 650], CAM_FICHE = [120, 130, 1780, 610];
+const ETAPES = [
+  { nom: 'La première info', t: 'Le serveur pose la première chose sur le plateau du chef.', lignes: [{ qui: 'serveur', dit: '« Table 4 : allergie aux fruits à coque. »' }], v: 'le plateau, c’est la fenêtre de contexte : tout ce que le modèle a sous les yeux pour répondre (consignes, conversation, documents).' },
+  { nom: 'La conversation', t: 'La soirée avance : chaque nouvelle demande ajoute un ingrédient.', lignes: [{ qui: 'chef', dit: '« Le plateau est plein ! »' }], v: 'chaque message ajoute des tokens. La fenêtre de GPT-4o en contient 128 000 ; ici, le plateau n’a que 8 places.' },
+  { nom: 'Ça déborde', t: 'Un ingrédient de plus : tout glisse, et le plus ancien tombe dans le seau.', lignes: [{ dit: 'C’était le ticket d’allergie.' }], v: 'quand la conversation dépasse la fenêtre, beaucoup d’applications coupent le début (ou le résument). Les consignes du début peuvent disparaître.' },
+  { nom: 'L’oubli', lignes: [{ qui: 'chef', dit: '« Pour la table 4 : notre tarte aux amandes ! »', tampon: 'RATÉ' }, { dit: 'Il n’a rien oublié : le ticket n’était plus sur le plateau.' }], v: 'le modèle ne se souvient que de ce qui est dans sa fenêtre. Ce qui en est sorti n’existe plus pour lui.' },
+  { nom: 'Le milieu', t: 'Même quand tout tient, le chef regarde surtout les bords du plateau.', lignes: [{ qui: 'chef', dit: '« Le milieu ? Je ne le vois presque plus. »' }], v: 'dans l’étude « Lost in the Middle » (Liu et al., 2023), GPT-3.5 trouve la bonne info 76 fois sur 100 si elle est au début, 54 si elle est au milieu : moins que sans aucun document.' },
+  { nom: 'Le remède', t: 'Le bon réflexe : l’essentiel sur le bord, et seulement l’utile sur le plateau.', lignes: [{ qui: 'chef', dit: '« Table 4, sans fruits à coque : c’est noté. »' }], v: 'répéter les consignes clés au début (ou à la fin), résumer l’historique, et n’ajouter que les passages utiles (c’est le RAG).' },
+];
+
+function monde(kk, k) {
+  poserSur('poubelle', 225, 690);
+  poser('plateau', 300, 250);
+  perso('chef', kk === 3 ? 'chef-cuisine' : 'chef-attend', 1290, 720, k !== 0);
+  perso('serveur', 'serveur-ticket', 1290, 720, k === 0);
+  // ce qui est sur le plateau, dans l'ordre d'arrivée
+  const sur = kk === 0 ? ['ticket']
+    : kk === 1 ? ['ticket', ...ING.slice(0, 7)]
+    : kk <= 3 ? ING.slice(0, 8)
+    : kk === 4 ? ['tomate', 'oignon', 'citron', 'fromage', 'ticket', 'oeufs', 'beurre', 'carotte']
+    : ['ticket', 'tomate', 'citron', 'oeufs'];
+  ['ticket', ...ING].forEach(id => {
+    const i = sur.indexOf(id);
+    const o = Cuisine.O[id];
+    o.classList.remove('terne-img');
+    if (i >= 0) poserSur(id, place(i), BASE, 1, true, kk === 1 ? .1 * i : kk === 2 ? .03 * i : 0);
+    else if (id === 'ticket' && (kk === 2 || kk === 3)) poserSur('ticket', 232, 490, .6);   // tombé dans le seau : il dépasse du bord (z-index sous le seau)
+    else poserSur(id, 1250, 120, .4, false);
+    o.classList.toggle('dans-poubelle', id === 'ticket' && (kk === 2 || kk === 3));
+    const ord = o.querySelector('.ordre');
+    ord.textContent = i === 0 ? 'début' : i === sur.length - 1 ? 'fin' : i === 4 ? 'milieu' : '';
+    ord.classList.toggle('cache', kk !== 4 || !ord.textContent);
+    if (kk === 4 && i >= 2 && i <= 5) o.classList.add('terne-img');
+  });
+  // l'arrivée du ticket d'allergie
+  if (k === 0) poserSur('ticket', place(0), BASE);
+  poserSur('tarte', 1510, 670, 1, kk === 3);
+  if (kk === 1) { fiche.style.width = '300px'; fiche.innerHTML = '<p class="k">Plateau du chef</p><p class="t">8 places sur 8</p><p class="n">Un de plus, et il faut en retirer un.</p>'; placer(fiche, 1440, 170, true, 2); }
+  else if (kk === 4) { fiche.style.width = '492px'; fiche.innerHTML = `<p class="k">Bonnes réponses sur 100</p><p class="t">Le milieu se perd</p>${courbe()}`; placer(fiche, 1385, 150, true, 1.5); }
+  else placer(fiche, 1440, 170, false);
+}
+
+Cuisine.lancer({
+  id: 'contexte', notion: 'Fenêtre de contexte', titre: 'Le plateau qui déborde',
+  chapeau: 'Pourquoi une IA « oublie » ce qu’on lui a dit au début. Et pourquoi le milieu d’un long texte se perd.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'lost.html', titre: 'Chapitre suivant : le milieu du plateau' },
+  recap: {
+    titre: 'Le contexte, c’est le plateau du chef',
+    trois: [
+      { img: 'plateau', t: 'Une taille fixe', d: 'Le modèle ne voit que ce qui tient sur son plateau, compté en tokens.' },
+      { img: 'seau-compost', t: 'Ça déborde', d: 'Quand c’est plein, le début de la conversation est coupé ou résumé.' },
+      { img: 'ticket', t: 'Les bords comptent', d: 'L’info au milieu d’un long texte est moins bien utilisée.' },
+    ],
+    entretien: '« La fenêtre de contexte, c’est tout ce que le modèle voit pour répondre : consignes, historique, documents, comptés en tokens. Au-delà, il faut couper ou résumer, et on perd des infos. Même dedans, l’info au milieu est moins bien utilisée (« Lost in the Middle »). D’où : consignes clés au début, historique résumé, et seulement les passages utiles. »',
+    source: 'Source : <a href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">Liu et al., 2023, Lost in the Middle</a> (tableau 6)',
+  },
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le chef demande, le commis court</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .taches { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; }
+  .taches li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
+  .taches li b { font: 800 var(--ws)/1.2 'Bricolage Grotesque'; }
+  .taches li span { display: block; font: 700 var(--ws)/1.25 'Kalam', cursive; color: var(--encre-2); }
+  .taches li i { font-style: normal; font: 800 var(--ws)/1 'Bricolage Grotesque'; color: #fff; background: var(--sarcelle); border-radius: 50%;
+    width: 26px; height: 26px; display: grid; place-items: center; margin-top: 1px; }
+  .taches li.actif { background: rgba(43,140,131,.1); border-radius: 10px; margin: -6px -8px; padding: 6px 8px; }
+  .porte-nom { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); white-space: nowrap; font: 800 max(var(--ws), calc(14px / var(--z, 1)))/1 'Bricolage Grotesque';
+    color: #fff; background: var(--encre); border-radius: 6px; padding: 6px 10px 5px; letter-spacing: .06em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Appel d'outil · le chef demande, le commis court.
+// Le point clé (vérifié dans la doc d'OpenAI et de Google) : le modèle n'exécute jamais l'outil. Il renvoie un nom + des arguments ;
+// c'est l'application qui exécute, puis lui renvoie le résultat.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Appel d’outil', titre: 'Le chef demande, le commis court' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('froide', 'chambre-froide', larg('chambre-froide', 300), '<span class="porte-nom">Chambre froide</span>');
+objet('poele', 'poele', larg('poele', 250));
+objet('oeufs', 'oeufs', larg('oeufs', 110));
+objet('boite', 'boite-oeufs', larg('boite-oeufs', 170));
+objet('serveur', 'serveur-ticket', 180);
+objet('chef', 'chef-attend', 160);
+objet('commis', 'commis-ecoute', 180);
+const fiche = element('fiche');
+const bon = document.createElement('div'); bon.className = 'bon cache'; Cuisine.scene.appendChild(bon);
+const placerBon = (x, y, vis, rot = 0) => { bon.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`; bon.classList.toggle('cache', !vis); bon._pos = { x, y, s: 1 }; };
+
+const TACHES = [
+  ['Vérifier un stock', 'dans la chambre froide · quoi ?'],
+  ['Commander', 'au fournisseur · quoi, combien ?'],
+  ['Lancer un minuteur', 'combien de minutes ?'],
+];
+const listeTaches = actif => `<p class="k">Ce que le commis sait faire</p><p class="t">Les tâches du commis</p><ul class="taches">` +
+  TACHES.map(([t, d], i) => `<li class="${i === actif ? 'actif' : ''}"><i>${i + 1}</i><div><b>${t}</b><span>${d}</span></div></li>`).join('') + '</ul>';
+
+const ETAPES = [
+  { nom: 'La commande', lignes: [{ qui: 'serveur', dit: '« Table 2 : une omelette. Il reste des œufs ? »' }, { dit: 'Le chef n’en sait rien : il ne quitte jamais son poste.' }], v: 'le modèle ne connaît pas l\u2019état du monde en direct : stock, météo, agenda, base de données…' },
+  { nom: 'Les tâches', t: 'Au mur, la liste de ce que le commis sait faire, et ce qu\u2019il faut lui préciser.', lignes: [{ qui: 'commis', dit: '« Pour chaque tâche, dites-moi quoi. Et combien. »' }], v: 'on déclare au modèle ses outils : un nom, une description, et les paramètres attendus.' },
+  { nom: 'Le bon', t: 'Le chef remplit un bon et appelle le commis. Lui-même ne bouge pas.', lignes: [{ qui: 'chef', dit: '« Commis ! Vérifie le stock : les œufs. »' }], v: 'le modèle n\u2019exécute rien : il répond par une demande structurée, par exemple verifier_stock(produit = « œufs »).' },
+  { nom: 'Le commis court', t: 'Le commis prend le bon et file à la chambre froide.', lignes: [{ qui: 'commis', dit: '« J’y vais ! »' }], v: 'c\u2019est ton application qui exécute l\u2019outil : une requête, un calcul, un appel d\u2019API.' },
+  { nom: 'Le retour', t: 'Il revient avec la boîte d’œufs, et note la réponse sur le bon.', lignes: [{ qui: 'commis', dit: '« 12 œufs, chef ! »' }], v: 'le résultat de l\u2019outil est renvoyé au modèle, qui ne l\u2019avait pas.' },
+  { nom: 'La réponse', t: 'Avec la réponse sous les yeux, le chef casse les œufs.', lignes: [{ qui: 'chef', dit: '« Oui, 12 œufs : l’omelette arrive dans 10 minutes ! »' }], v: 'le modèle lit le résultat et rédige sa réponse. Si besoin, il enchaîne d\u2019autres appels avant de répondre.' },
+];
+
+function monde(kk, k) {
+  poserSur('froide', 1420, 700);
+  poserSur('poele', 520, 640);
+  poserSur('oeufs', 360, 700, 1, kk === 5);                       // deux œufs sortis de la boîte, posés à côté de la poêle
+  poserSur('boite', 620, 715, 1, kk === 5);
+  perso('chef', kk === 2 ? 'chef-appelle' : kk === 5 ? 'chef-cuisine' : 'chef-attend', 790, 700);
+  perso('serveur', 'serveur-ticket', 1060, 700, kk === 0);
+  perso('commis', kk === 3 ? 'commis-court' : kk === 4 ? 'commis-presente' : 'commis-ecoute', kk === 3 ? 1210 : 1030, 700, kk >= 1 && kk <= 4);
+  // la liste des tâches, épinglée au mur
+  if (kk >= 1 && kk <= 3) { fiche.style.width = '400px'; fiche.innerHTML = listeTaches(kk >= 2 ? 0 : -1); placer(fiche, 150, 170, true, -1.5); }
+  else placer(fiche, 150, 170, false);
+  // le bon : rempli par le chef, emporté puis rapporté par le commis
+  if (kk === 2 || kk === 3) { bon.innerHTML = '<p class="k">Bon · tâche 1</p><p>Vérifier un stock</p><p>Quoi : les œufs</p>'; placerBon(kk === 2 ? 840 : 940, 150, true, kk === 2 ? -3 : 4); }   // à gauche de la chambre froide, jamais sur sa porte
+  else if (kk === 4 || kk === 5) { bon.innerHTML = '<p class="k">Bon · tâche 1</p><p>Vérifier un stock</p><p>Quoi : les œufs</p><p class="rep">→ 12 œufs</p>'; placerBon(kk === 4 ? 940 : 880, 150, true, kk === 4 ? 3 : -3); }
+  else placerBon(900, 150, false);
+}
+
+Cuisine.lancer({
+  id: 'outil', notion: 'Appel d’outil', titre: 'Le chef demande, le commis court',
+  chapeau: 'Comment une IA « agit » sur le monde : elle ne fait rien elle-même, elle demande.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'rag-ou-outil.html', titre: 'Chapitre suivant : la fiche ou le frigo' },
+  recap: {
+    titre: 'L’appel d’outil, c’est un bon de commande',
+    trois: [
+      { img: 'carnet', t: 'Demander', d: 'Le modèle choisit un outil et remplit ses paramètres. Il n’exécute rien.' },
+      { img: 'commis-court', t: 'Exécuter', d: 'L’application lance l’outil et rapporte le résultat.' },
+      { img: 'chef-cuisine', t: 'Répondre', d: 'Le modèle lit le résultat et rédige sa réponse.' },
+    ],
+    entretien: '« Avec l’appel d’outil, on déclare au modèle des fonctions : nom, description, paramètres. Quand il en a besoin, il ne l’exécute pas : il renvoie le nom de la fonction et ses arguments. C’est l’application qui l’exécute et lui renvoie le résultat, puis le modèle formule la réponse. C’est la brique de base des agents. »',
+    source: 'Sources : documentation « function calling » d’OpenAI et de Google Gemini',
+  },
+});
+</script>
+</body>
+</html>

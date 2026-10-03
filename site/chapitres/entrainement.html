@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L’école hôtelière</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .recette { margin: 12px 0 0; font: 700 var(--wm)/1.35 'Kalam', cursive; }
+  .recette .cache-mot { display: inline-block; background: var(--encre); color: var(--encre); border-radius: 6px; padding: 0 10px; }
+  .recette .vu { background: var(--ruban); border-radius: 4px; padding: 0 6px; }
+  .fiche .ligne { margin: 8px 0 0; font: 700 var(--ws)/1.35 'Kalam', cursive; }
+  .fiche .ligne b { font: 800 var(--ws)/1.2 'Bricolage Grotesque'; }
+  .fiche .barre { text-decoration: line-through; color: var(--encre-3); }
+  .fiche .gros { display: block; font: 800 var(--wm)/1.1 'Bricolage Grotesque'; color: var(--tomate); margin-top: 10px; }
+  .fiche .gros.s { color: var(--sarcelle); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Entraînement · l'école hôtelière (storyboard, chapitre 4).
+// Chiffres réels : GPT-3 (Brown et al., 2020) : 175 milliards de paramètres, entraîné sur 300 milliards de tokens ;
+// Llama 3 (Meta, 2024) : plus de 15 000 milliards de tokens ; InstructGPT (Ouyang et al., 2022) : le modèle de 1,3 milliard de paramètres
+// ajusté aux préférences humaines est préféré au GPT-3 de 175 milliards.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Entraînement', titre: 'L’école hôtelière' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('pile', 'pile-livres', larg('pile-livres', 190));
+objet('carnet', 'carnet', larg('carnet', 140), '<span class="etiq">carnet de réflexes</span>');
+objet('diplome', 'diplome', larg('diplome', 200), '<span class="etiq">fin d’école : 2024</span>');
+objet('tarteA', 'tarte', larg('tarte', 190));
+objet('tarteB', 'tarte-pommes', larg('tarte-pommes', 190));
+objet('commis', 'commis-lit', 180);
+objet('chef', 'chef-attend', 160);
+objet('critique', 'critique-goute', 160);
+objet('serveur', 'serveur-ticket', 180);
+const fiche = element('fiche');
+
+const ETAPES = [
+  { nom: 'La bibliothèque', t: 'Avant d’être chef, il a été apprenti. On lui a fait lire des montagnes de recettes.', lignes: [{ qui: 'commis', dit: '« Encore une pile ?! »' }], v: 'un modèle est d’abord « pré-entraîné » sur d’énormes quantités de texte : 300 milliards de tokens pour GPT-3, plus de 15 000 milliards pour Llama 3.' },
+  { nom: 'Le jeu du cache', t: 'Son exercice : on cache le dernier mot d’une recette, et il doit le deviner.', lignes: [{ qui: 'commis', dit: '« Farine, œufs… et le dernier mot est caché. »' }], v: 'l’entraînement, c’est deviner le token suivant, des milliards de fois, sur des textes dont on connaît la suite.' },
+  { nom: 'Raté', lignes: [{ qui: 'commis', dit: '« Beurre ? »' }, { dit: 'On soulève le cache : c’était « lait ».', tampon: 'RATÉ' }], v: 'on compare sa prédiction au vrai mot : l’écart est l’erreur.' },
+  { nom: 'Corriger', t: 'Il corrige un peu son carnet de réflexes. Et recommence, recette après recette.', lignes: [{ qui: 'commis', dit: '« Après “farine, œufs” : un peu plus souvent “lait”. »' }], v: 'chaque erreur ajuste très légèrement les réglages internes du modèle, ses paramètres.' },
+  { nom: 'Des milliards de fois', t: 'Des années de recettes plus tard, l’apprenti est devenu chef. Tout ce qu’il a lu tient dans ses réflexes.', lignes: [{ qui: 'chef', dit: '« Toutes ces recettes, je ne les ai plus. Il me reste les réflexes. »' }], v: 'GPT-3 compte 175 milliards de paramètres. Il ne garde pas les textes : il garde des réglages.' },
+  { nom: 'Les bonnes manières', t: 'Dernière étape : un critique goûte deux assiettes et montre sa préférée.', lignes: [{ qui: 'critique', dit: '« Celle-ci. »' }, { dit: 'Le chef apprend ce qui plaît.' }], v: 'c’est l’ajustement par préférences humaines (RLHF) : grâce à lui, un modèle de 1,3 milliard de paramètres a été préféré au GPT-3 de 175 milliards (InstructGPT, 2022).' },
+  { nom: 'La fin de l’école', t: 'Son diplôme porte une date.', lignes: [{ qui: 'serveur', dit: '« Le menu d’aujourd’hui, chef ! »' }, { qui: 'chef', dit: '« Le menu d’aujourd’hui ? Je ne le connais pas. »' }], v: 'c’est la date de coupure des connaissances : ce qui s’est passé après, le modèle l’ignore, sauf si on le lui donne (RAG, outils).' },
+];
+
+function monde(kk, k) {
+  const eleve = kk <= 3;
+  poserSur('pile', 420, 700, 1, kk <= 4);
+  perso('commis', kk === 2 ? 'commis-ecoute' : kk === 3 ? 'commis-ecrit' : 'commis-lit', 700, 710, eleve);
+  perso('chef', kk === 5 ? 'chef-goute' : kk === 6 ? 'chef-improvise' : 'chef-attend', 700, 710, !eleve);
+  poserSur('carnet', 960, 700, 1, kk === 3 || kk === 4);
+  O.carnet.classList.toggle('choisi', kk === 3);
+  poserSur('tarteA', 1000, 700, 1, kk === 5); poserSur('tarteB', 1230, 700, 1, kk === 5);
+  O.tarteA.classList.toggle('choisi', kk === 5);
+  perso('critique', 'critique-goute', 1470, 710, kk === 5);
+  poserSur('diplome', 420, 700, 1, kk === 6);
+  perso('serveur', 'serveur-ticket', 1000, 710, kk === 6);
+  // la fiche recette avec son dernier mot caché, puis révélé ; le carnet ; les chiffres
+  const recette = mot => `<p class="k">Fiche d’exercice</p><p class="recette">Pâte à crêpes : farine, œufs, ${mot}</p>`;
+  if (kk === 1) { fiche.style.width = '440px'; fiche.innerHTML = recette('<span class="cache-mot">??????</span>'); placer(fiche, 1150, 150, true, 1.5); }
+  else if (kk === 2) { fiche.style.width = '440px'; fiche.innerHTML = recette('<span class="vu">lait</span>') + '<p class="ligne"><b>Sa réponse :</b> beurre</p>'; placer(fiche, 1150, 150, true, 1.5); }
+  else if (kk === 3) { fiche.style.width = '420px'; fiche.innerHTML = '<p class="k">Carnet de réflexes</p><p class="t">Après « farine, œufs »</p><p class="ligne"><span class="barre">plutôt beurre</span></p><p class="ligne">un peu plus souvent : lait</p>'; placer(fiche, 1150, 150, true, 1.5); }
+  else if (kk === 4) { fiche.style.width = '400px'; fiche.innerHTML = '<p class="k">GPT-3, pour de vrai</p><span class="gros">300 milliards</span><p class="ligne">de tokens lus pendant l’entraînement</p><span class="gros s">175 milliards</span><p class="ligne">de réglages (paramètres) à la fin</p>'; placer(fiche, 1250, 130, true, 1.5); }
+  else placer(fiche, 1150, 150, false);
+}
+
+Cuisine.lancer({
+  id: 'entrainement', notion: 'Entraînement', titre: 'L’école hôtelière',
+  chapeau: 'D’où vient ce que sait une IA : des années à deviner la suite de textes, puis des leçons de bonnes manières.',
+  etapes: ETAPES, monde, noms: { commis: 'L’apprenti' }, duree: '2 minutes',
+  suivant: { href: 'hallucination.html', titre: 'Chapitre suivant : l’hallucination' },
+  recap: {
+    titre: 'L’entraînement, c’est l’école hôtelière',
+    trois: [
+      { img: 'pile-livres', t: 'Pré-entraînement', d: 'Deviner le mot suivant sur des milliers de milliards de tokens.' },
+      { img: 'critique-goute', t: 'Préférences', d: 'Des humains comparent des réponses : le modèle apprend ce qui plaît.' },
+      { img: 'diplome', t: 'Une date de fin', d: 'Ce qui est arrivé après, le modèle ne le sait pas.' },
+    ],
+    entretien: '« Un LLM est d’abord pré-entraîné à prédire le token suivant sur un énorme corpus : chaque erreur ajuste un peu ses paramètres. Ensuite, on l’ajuste avec des exemples et des préférences humaines (RLHF) pour qu’il suive les consignes. Ses connaissances s’arrêtent à une date de coupure : pour l’actualité ou les données internes, il faut du RAG ou des outils. »',
+    source: 'Sources : <a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">Brown et al., 2020 (GPT-3)</a> · <a href="https://arxiv.org/abs/2203.02155" target="_blank" rel="noopener">Ouyang et al., 2022 (InstructGPT)</a> · <a href="https://ai.meta.com/blog/meta-llama-3/" target="_blank" rel="noopener">Meta, Llama 3</a>',
+  },
+});
+</script>
+</body>
+</html>

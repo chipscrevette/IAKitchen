@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La brigade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche .ligne { margin: 8px 0 0; font: 700 var(--ws)/1.3 'Kalam', cursive; }
+  .fiche .ligne b { font: 800 var(--ws)/1.2 'Bricolage Grotesque'; }
+  .fiche .gros { display: block; font: 800 var(--wm)/1.1 'Bricolage Grotesque'; color: var(--sarcelle); margin-top: 10px; }
+  .fiche .gros.t2 { color: var(--tomate); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Multi-agents et A2A · la brigade (storyboard, chapitre 19).
+// Chiffres réels : Anthropic, « How we built our multi-agent research system » (2025) : +90,2 % sur leur évaluation interne,
+// mais environ 15 fois plus de tokens qu'un simple chat. A2A : protocole ouvert (Google, 2025, confié à la Linux Foundation),
+// chaque agent publie sa « carte » (Agent Card) à une adresse connue.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Multi-agents et A2A', titre: 'La brigade' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('gateau', 'gateau', larg('gateau', 150));
+objet('sauce', 'poele-sauce', larg('poele-sauce', 250));
+objet('chef', 'chef-attend', 160);
+objet('patissiere', 'patissiere-attend', 160);
+objet('saucier', 'saucier-attend', 160);
+objet('commis', 'commis-ecoute', 180);
+objet('serveur', 'serveur-ticket', 180);
+const fiche = element('fiche'), bonP = element('bon'), bonS = element('bon'), bonB = element('bon');
+
+const ETAPES = [
+  { nom: 'Le banquet', lignes: [{ qui: 'serveur', dit: '« Un banquet de 40 couverts pour ce soir ! »' }, { dit: 'Seul, le chef n’y arrivera pas à temps.' }], v: 'une tâche trop vaste pour un seul agent : trop d’étapes, trop de recherches à mener.' },
+  { nom: 'Déléguer', t: 'Le chef découpe le travail. Chacun reçoit son bon.', lignes: [{ qui: 'chef', dit: '« Le dessert pour la pâtissière, la sauce pour le saucier ! »' }], v: 'un agent « chef d’orchestre » découpe la tâche et la confie à des agents spécialisés, chacun avec ses consignes et ses outils.' },
+  { nom: 'En parallèle', t: 'Chacun travaille à son poste, en même temps. Le chef, lui, coordonne.', lignes: [{ qui: 'patissiere', dit: '« Le dessert avance ! »' }, { qui: 'saucier', dit: '« La sauce aussi ! »' }], v: 'chez Anthropic, un chef (Claude Opus 4) et ses aides (Claude Sonnet 4) ont fait 90 % mieux qu’un agent seul sur leurs recherches internes.' },
+  { nom: 'La cuisine d’à côté', t: 'Pour le pain, on commande au boulanger voisin. Il affiche sa carte ; on lui envoie un bon au format commun.', lignes: [{ qui: 'commis', dit: '« Allô, la boulangerie ? C’est pour 40 petits pains. »' }], v: 'c’est A2A : un protocole ouvert pour que des agents de maisons différentes se parlent. Chaque agent publie sa « carte » (Agent Card) : ce qu’il sait faire, et comment le joindre.' },
+  { nom: 'L’addition', t: 'Le banquet est prêt.', lignes: [{ qui: 'chef', dit: '« À trois, on a tout fait à temps. »' }, { dit: 'Mais trois cuisiniers, ça coûte plus cher qu’un.' }], v: 'un système multi-agents consomme environ 15 fois plus de tokens qu’un simple chat (Anthropic). À réserver aux tâches qui en valent la peine.' },
+];
+
+function monde(kk, k) {
+  perso('serveur', 'serveur-ticket', 1480, 710, kk === 0);
+  perso('chef', kk === 1 ? 'chef-appelle' : kk === 4 ? 'chef-content' : 'chef-attend', 820, 710);
+  perso('patissiere', kk === 2 ? 'patissiere-poche' : 'patissiere-attend', 330, 710, kk >= 1);
+  perso('saucier', kk === 2 ? 'saucier-fouette' : 'saucier-attend', 1190, 710, kk >= 1);
+  perso('commis', 'commis-telephone', 1450, 710, kk === 3);
+  poserSur('gateau', 560, 700, 1, kk >= 2);
+  poserSur('sauce', 990, 700, 1, kk >= 2);
+  // les bons : du chef vers chaque poste
+  if (kk === 1) {
+    bonP.innerHTML = '<p class="k">Bon · pâtisserie</p><p>40 desserts</p><p>fruits rouges</p>'; placer(bonP, 360, 150, true, -3);
+    bonS.innerHTML = '<p class="k">Bon · sauces</p><p>40 parts</p><p>sauce au poivre</p>'; placer(bonS, 1090, 150, true, 3);
+  } else { placer(bonP, 360, 150, false); placer(bonS, 1150, 150, false); }
+  if (kk === 3) {
+    fiche.style.width = '360px';
+    fiche.innerHTML = '<p class="k">La carte du voisin · Agent Card</p><p class="t">Boulangerie d’à côté</p><p class="ligne"><b>Sait faire :</b> pain, brioche, viennoiseries</p><p class="ligne"><b>Commande :</b> par bon, au format commun</p>';
+    placer(fiche, 1270, 90, true, 1.5);
+    bonB.innerHTML = '<p class="k">Bon · format A2A</p><p>40 petits pains</p><p>pour 19 h</p>'; placer(bonB, 880, 130, true, -2);
+  } else if (kk === 4) {
+    fiche.style.width = '380px';
+    fiche.innerHTML = '<p class="k">L’addition de la brigade</p><p class="t">Mieux, mais plus cher</p><span class="gros">+90 % de résultats</span><p class="ligne">sur les recherches internes d’Anthropic</p><span class="gros t2">×15 en tokens</span><p class="ligne">par rapport à un simple chat</p>';
+    placer(fiche, 1380, 120, true, 1.5); placer(bonB, 1020, 170, false);
+  } else { placer(fiche, 1570, 120, false); placer(bonB, 1020, 170, false); }
+}
+
+Cuisine.lancer({
+  id: 'brigade', notion: 'Multi-agents et A2A', titre: 'La brigade',
+  chapeau: 'Quand plusieurs IA se partagent le travail. Et comment des IA de maisons différentes se parlent.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'humain.html', titre: 'Chapitre suivant : la patronne valide' },
+  recap: {
+    titre: 'Le multi-agents, c’est une brigade',
+    trois: [
+      { img: 'chef-appelle', t: 'Déléguer', d: 'Un agent découpe la tâche et la confie à des agents spécialisés.' },
+      { img: 'telephone', t: 'A2A', d: 'Des agents de maisons différentes se parlent grâce à un format commun et à leur « carte ».' },
+      { img: 'balance', t: 'Le coût', d: 'Plus efficace sur les grosses tâches, mais bien plus de tokens.' },
+    ],
+    entretien: '« Un système multi-agents répartit une tâche entre un agent coordinateur et des agents spécialisés qui travaillent en parallèle. Anthropic mesure +90 % sur ses recherches internes, mais environ 15 fois plus de tokens qu’un chat. Pour faire dialoguer des agents de fournisseurs différents, il existe A2A, un protocole ouvert où chaque agent publie sa carte (Agent Card). MCP relie un agent à ses outils ; A2A relie des agents entre eux. »',
+    source: 'Sources : <a href="https://www.anthropic.com/engineering/multi-agent-research-system" target="_blank" rel="noopener">Anthropic, multi-agent research system</a> · <a href="https://github.com/a2aproject/A2A" target="_blank" rel="noopener">protocole A2A</a>',
+  },
+});
+</script>
+</body>
+</html>

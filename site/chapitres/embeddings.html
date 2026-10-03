@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le goût en notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche .ligne { margin: 8px 0 0; font: 700 var(--ws)/1.35 'Kalam', cursive; }
+  .fiche .mots span { display: inline-block; background: var(--creme); border-radius: 6px; padding: 2px 8px; margin: 6px 6px 0 0; font: 700 var(--ws)/1.2 'Kalam', cursive; text-decoration: line-through; color: var(--encre-3); }
+  .score.faux { background: var(--tomate); }
+  .fiche .zero { font: 800 var(--wl)/1 'Bricolage Grotesque'; color: var(--tomate); margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Embeddings · le goût en notes (storyboard, chapitre 9).
+// Vrais calculs (outils/calculs/embeddings2.mjs) avec paraphrase-multilingual-MiniLM-L12-v2 (384 nombres par texte) :
+// « Un dessert léger aux fruits rouges » → coulis de framboise 0,58 (0 mot en commun) ; « De quoi assaisonner une salade » → fond brun 0,59,
+// la vinaigrette seulement 4e (0,48) : un petit modèle se trompe.
+const { objet, element, poser, poserSur, perso, placer, O, fr } = Cuisine;
+Cuisine.construire({ notion: 'Embeddings', titre: 'Le goût en notes' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+const NOMS = ['Pâte sablée', 'Crème d’amande', 'Poires pochées', 'Fond brun', 'Vinaigrette', 'Velouté potiron', 'Beurre blanc', 'Coulis framboise'];
+const SRC = ['bocal-pate-sablee', 'bocal-creme-amande', 'bocal-poires-pochees', 'bocal-fond-brun', 'bocal-vinaigrette', 'bocal-veloute-potiron', 'bocal-beurre-blanc', 'bocal-coulis-framboise'];
+const NOTES = {
+  dessert: [.4757, .3564, .4715, .2797, .4682, .3701, .4388, .5808],
+  salade: [.4117, .4492, .3056, .5902, .4766, .4920, .2499, .5644],
+};
+NOMS.forEach((n, i) => objet('bo' + i, SRC[i], larg(SRC[i], 92), `<span class="etiq" style="--r:${[-2, 1.5, -1, 2][i % 4]}deg">${n}</span><span class="score cache"></span>`));
+objet('commis', 'commis-ecoute', 180);
+objet('serveur', 'serveur-ticket', 180);
+const fiche = element('fiche');
+
+const X = i => 230 + i * 162, BAS = 600;
+const ETAPES = [
+  { nom: 'La commande', lignes: [{ qui: 'serveur', dit: '« Un dessert léger aux fruits rouges, s’il vous plaît. »' }, { dit: 'Sur le plan, huit bocaux étiquetés.' }], v: 'une question, et une base de documents où chercher.', q: 'dessert' },
+  { nom: 'Par les mots', t: 'Le commis cherche les mots de la commande sur les étiquettes.', lignes: [{ qui: 'commis', dit: '« Aucun bocal ne s’appelle “dessert”, “léger” ou “fruits rouges” ! »' }], v: 'une recherche par mots-clés ne trouve rien : aucune fiche ne contient ces mots.', q: 'dessert' },
+  { nom: 'Par le goût', t: 'Alors il goûte. Chaque bocal a son profil de goût, noté en 384 notes.', lignes: [{ qui: 'commis', dit: '« J’imagine le goût de la commande… et je compare. »' }], v: 'c’est l’embedding : un modèle transforme chaque texte en 384 nombres. « Proche » veut dire que les deux listes pointent dans la même direction (le cosinus). Ces notes sont les vraies.', q: 'dessert' },
+  { nom: 'Le plus proche', lignes: [{ qui: 'commis', dit: '« Le coulis de framboise ! »' }, { dit: 'Il arrive en tête sans un seul mot en commun avec la commande.' }], v: 'la recherche par le sens trouve ce que les mots-clés ratent : c’est ce qui fait marcher le RAG.', q: 'dessert' },
+  { nom: 'Pas infaillible', lignes: [{ qui: 'serveur', dit: '« Et de quoi assaisonner une salade ? »' }, { dit: 'Le commis propose le fond brun. La vinaigrette n’arrive que 4e.', tampon: 'RATÉ' }], v: 'un petit modèle d’embedding se trompe aussi. On en teste plusieurs sur ses propres questions avant de choisir, et on combine souvent sens et mots-clés.', q: 'salade' },
+];
+
+function monde(kk, k) {
+  const q = ETAPES[kk].q, notes = NOTES[q], meilleur = notes.indexOf(Math.max(...notes));
+  NOMS.forEach((n, i) => {
+    poserSur('bo' + i, X(i), BAS);
+    const sc = O['bo' + i].querySelector('.score');
+    sc.textContent = fr(notes[i], 2); sc.classList.toggle('cache', kk < 2); sc.classList.toggle('top', kk >= 3 && i === meilleur);
+    O['bo' + i].classList.toggle('terne', kk === 1);
+    O['bo' + i].classList.toggle('choisi', kk === 3 && i === meilleur);
+  });
+  perso('serveur', 'serveur-ticket', 1600, 720, kk === 0 || kk === 4);
+  perso('commis', kk === 1 ? 'commis-ecoute' : kk === 2 ? 'commis-goute' : kk === 3 ? 'commis-range' : 'commis-imagine', 1600, 720, kk >= 1 && kk <= 3);
+  if (kk === 1) { fiche.style.width = '380px'; fiche.innerHTML = '<p class="k">Recherche par les mots</p><div class="mots"><span>dessert</span><span>léger</span><span>fruits</span><span>rouges</span></div><p class="zero">0 bocal</p><p class="ligne">ne porte un de ces mots</p>'; placer(fiche, 230, 170, true, -1.5); }
+  else if (kk === 4) { fiche.style.width = '420px'; fiche.innerHTML = '<p class="k">Le classement du commis</p><p class="ligne">1. Fond brun · 0,59</p><p class="ligne">2. Coulis framboise · 0,56</p><p class="ligne">3. Velouté potiron · 0,49</p><p class="ligne"><b>4. Vinaigrette · 0,48</b></p>'; placer(fiche, 230, 170, true, -1.5); }
+  else placer(fiche, 230, 170, false);
+  // le bocal que le commis aurait dû prendre pour la salade
+  O.bo4.classList.toggle('choisi', kk === 4);
+  // pour la salade : le fond brun (1er, faux) en rouge, la vinaigrette (la bonne réponse) entourée
+  O.bo3.querySelector('.score').classList.toggle('faux', kk === 4); if (kk === 4) O.bo3.querySelector('.score').classList.remove('top');
+}
+
+Cuisine.lancer({
+  id: 'embeddings', notion: 'Embeddings', titre: 'Le goût en notes',
+  chapeau: 'Comment une IA retrouve un texte par son sens, même sans un seul mot en commun.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'rag.html', titre: 'Chapitre suivant : le RAG' },
+  recap: {
+    titre: 'L’embedding, c’est un profil de goût',
+    trois: [
+      { img: 'commis-goute', t: 'Noter', d: 'Chaque texte devient une liste de nombres : son profil.' },
+      { img: 'bocal-coulis-framboise', t: 'Comparer', d: 'Les profils proches se ressemblent, même sans mot commun.' },
+      { img: 'bocal-vinaigrette', t: 'Vérifier', d: 'Un modèle d’embedding se trompe aussi : on l’évalue sur ses cas.' },
+    ],
+    entretien: '« Un embedding est une représentation d’un texte sous forme de vecteur, par exemple 384 ou 1 536 nombres. Deux textes de sens proche ont des vecteurs proches, qu’on compare avec la similarité cosinus. C’est ce qui permet la recherche sémantique du RAG : trouver un passage pertinent sans mot en commun avec la question. Mais la qualité dépend du modèle d’embedding : on l’évalue, et on combine souvent avec une recherche par mots-clés. »',
+    source: 'Calculs réels : paraphrase-multilingual-MiniLM-L12-v2, via transformers.js',
+  },
+});
+</script>
+</body>
+</html>

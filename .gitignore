@@ -1,0 +1,14 @@
+# images sources (lourdes, régénérables en site/images avec outils/images/preparer_images.py)
+sources/
+
+# sorties des outils de contrôle (captures, profils Chrome, rapports d'audit)
+outils/controle/sortie/
+
+# dépendances et modèles téléchargés par transformers.js
+node_modules/
+.cache/
+
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

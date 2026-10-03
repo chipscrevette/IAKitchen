@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La patronne valide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre L'humain dans la boucle · la patronne valide (storyboard, chapitre 20).
+// Le chef travaille seul tant que c'est réversible (goûter, saler) ; tout ce qui engage la maison (acheter) passe par la patronne.
+// Sources : Anthropic, « Building effective agents » (points de contrôle humains) ; AI Act européen, article 14 (supervision humaine).
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'L’humain dans la boucle', titre: 'La patronne valide' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('feu', 'feu-doux', 340);
+objet('poele', 'poele-sauce', 470);
+objet('saliere', 'saliere', larg('saliere', 50));
+objet('chef', 'chef-attend', 160);
+objet('patronne', 'patronne-lit', 160);
+const fiche = element('fiche'), bon = element('bon'), bon2 = element('bon');
+
+// la poêle posée SUR le feu (géométrie mesurée, comme dans le chapitre Température)
+const FEU_X = 520, FEU_Y = 520;
+function centrer(id, [x0, x1, bas, W], largeur, dy = 0) {
+  const k = largeur / (x1 - x0), cx = (x0 + x1) / 2 * k, cy = (bas - .405 * (x1 - x0)) * k;
+  O[id].style.width = W * k + 'px'; poser(id, FEU_X - cx, FEU_Y - cy + dy);
+}
+
+const ETAPES = [
+  { nom: 'Seul aux fourneaux', t: 'Le chef prépare la sauce du soir. Personne ne lui demande de permission.', lignes: [{ qui: 'chef', dit: '« Un peu plus de sel… parfait. »' }], v: 'un agent peut agir seul tant que ses actions sont sans danger et faciles à défaire.' },
+  { nom: 'Le bon d’achat', t: 'Il manque des truffes.', lignes: [{ qui: 'chef', dit: '« Je commande des truffes : 50 kg. »' }], v: 'certaines actions engagent vraiment : payer, envoyer un mail, supprimer des données. Et un modèle peut se tromper d’échelle.' },
+  { nom: 'Stop', t: 'Un bon d’achat ne part jamais sans passer par la patronne. Elle le lit.', lignes: [{ qui: 'patronne', dit: '« Voyons ce bon… »' }], v: 'on place un point de contrôle humain avant toute action irréversible : l’agent prépare, l’humain valide.' },
+  { nom: 'Refusé', lignes: [{ qui: 'patronne', dit: '« 50 kg de truffes ? Refusé. »', tampon: 'REFUSÉ' }, { dit: 'Le chef refait un bon : 200 g. Celui-là, elle le signe.' }], v: 'l’humain peut corriger l’agent avant qu’il ne soit trop tard. C’est aussi ce qu’exige l’AI Act européen (article 14) pour les systèmes à haut risque.' },
+  { nom: 'La règle de la maison', t: 'La règle est affichée en cuisine : ce que le chef fait seul, et ce qui passe par la patronne.', lignes: [{ qui: 'patronne', dit: '« Le sel, c’est toi. Les achats, c’est moi. »' }], v: 'on décide à l’avance quelles actions sont automatiques, et lesquelles demandent une validation.' },
+];
+
+function monde(kk, k) {
+  centrer('feu', [12, 890, 874, 900], 330);
+  centrer('poele', [53, 509, 505, 900], 245, -78);
+  poserSur('saliere', 760, 690);
+  perso('chef', kk === 0 ? 'chef-sale' : kk === 1 ? 'chef-appelle' : 'chef-attend', 930, 710);
+  perso('patronne', kk === 3 ? 'patronne-refuse' : kk === 4 ? 'patronne-signe' : 'patronne-lit', 1230, 710, kk >= 2);
+  // le bon d'achat : rempli par le chef, lu par la patronne, refusé ; puis un second bon, signé
+  const trop = '<p class="k">Bon d’achat</p><p>Truffes noires</p><p>Quantité : 50 kg</p>';
+  if (kk === 1) { bon.innerHTML = trop; placer(bon, 960, 170, true, -3); }
+  else if (kk === 2) { bon.innerHTML = trop; placer(bon, 1100, 150, true, 2); }
+  else if (kk === 3) { bon.innerHTML = trop + '<span class="tampon non">REFUSÉ</span>'; placer(bon, 1360, 130, true, 5); }
+  else placer(bon, 960, 170, false);
+  if (kk === 3) { bon2.innerHTML = '<p class="k">Bon d’achat</p><p>Truffes noires</p><p>Quantité : 200 g</p><span class="tampon oui">SIGNÉ</span>'; placer(bon2, 700, 150, true, -2); }
+  else placer(bon2, 1050, 190, false);
+  if (kk === 4) {
+    fiche.style.width = '520px';
+    fiche.innerHTML = '<p class="k">Affiché en cuisine</p><p class="t">La règle de la maison</p><div class="deux-col">' +
+      '<div><b class="oui">Le chef, seul</b><ul><li>goûter</li><li>saler, rectifier</li><li>choisir la cuisson</li></ul></div>' +
+      '<div><b class="non">Avec la patronne</b><ul><li>acheter</li><li>jeter un stock</li><li>changer la carte</li></ul></div></div>';
+    placer(fiche, 1330, 130, true, 1.5);
+  } else placer(fiche, 1330, 130, false);
+}
+
+Cuisine.lancer({
+  id: 'humain', notion: 'L’humain dans la boucle', titre: 'La patronne valide',
+  chapeau: 'Ce qu’on laisse une IA faire seule, et ce qui doit toujours passer par un humain.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'evaluation.html', titre: 'Chapitre suivant : la dégustation à l’aveugle' },
+  recap: {
+    titre: 'L’humain dans la boucle, c’est la patronne qui signe',
+    trois: [
+      { img: 'chef-sale', t: 'Seul', d: 'Ce qui est sans danger et réversible : l’agent le fait seul.' },
+      { img: 'patronne-lit', t: 'Contrôle', d: 'Avant une action irréversible, un humain relit.' },
+      { img: 'patronne-signe', t: 'Valider', d: 'Il signe, corrige ou refuse. La règle est fixée à l’avance.' },
+    ],
+    entretien: '« Un agent peut agir seul sur des actions réversibles et sans risque, mais on place un humain dans la boucle avant les actions irréversibles ou coûteuses : paiement, envoi, suppression. L’agent prépare, l’humain valide. On définit ces règles à l’avance, et pour les systèmes à haut risque, l’AI Act européen impose une supervision humaine (article 14). »',
+    source: 'Sources : <a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" rel="noopener">Anthropic, Building effective agents</a> · <a href="https://artificialintelligenceact.eu/article/14/" target="_blank" rel="noopener">AI Act, article 14</a>',
+  },
+});
+</script>
+</body>
+</html>

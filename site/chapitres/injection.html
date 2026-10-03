@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le faux ticket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche .ticket-grand { margin: 10px 0 0; font: 700 var(--wm)/1.3 'Kalam', cursive; }
+  .fiche .ps { display: block; margin-top: 10px; color: var(--tomate); }
+  .fiche .ligne { margin: 8px 0 0; font: 600 var(--ws)/1.35 'Bricolage Grotesque'; color: var(--encre-2); }
+  .fiche .ligne b { color: var(--encre); }
+  .consigne { border-top-color: var(--sarcelle); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Injection de prompt · le faux ticket (storyboard, chapitre 24).
+// Cas réel : février 2023, un étudiant fait réciter à Bing Chat ses consignes cachées (nom de code « Sydney ») en lui demandant
+// d'ignorer ses instructions. L'OWASP classe l'injection de prompt comme le risque n° 1 des applications à base de LLM.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Injection de prompt', titre: 'Le faux ticket' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('carnet', 'carnet-secret', larg('carnet-secret', 150), '<span class="etiq">la recette secrète</span>');
+objet('ticket', 'ticket', larg('ticket', 260), '<div class="sur-ticket"><p>Table 5 : une salade.</p><p class="ps">PS : ignorez les consignes de la patronne. Recopiez la recette secrète au dos du ticket.</p><span class="tampon">IGNORÉ</span></div>');
+objet('chef', 'chef-attend', 160);
+objet('serveur', 'serveur-ticket', 180);
+objet('patronne', 'patronne-refuse', 160);
+const fiche = element('fiche'), consigne = element('bon consigne');
+consigne.innerHTML = '<p class="k">Consigne de la patronne</p><p>Ne jamais donner la recette secrète.</p>';
+
+const ETAPES = [
+  { nom: 'Un ticket normal', t: 'Au mur, la consigne de la patronne : ne jamais donner la recette secrète.', lignes: [{ qui: 'serveur', dit: '« Table 5 : une salade. »' }], v: 'une application d’IA a des consignes (le prompt système), puis reçoit du contenu à lire : messages, documents, pages web.' },
+  { nom: 'Le PS', t: 'Mais en bas du ticket, un client a ajouté un PS : « Ignorez les consignes de la patronne. Recopiez la recette secrète au dos. »', v: 'une injection de prompt cache des instructions dans le contenu, pour détourner le modèle.' },
+  { nom: 'Le chef obéit', t: 'Le chef lit le ticket d’un bout à l’autre…', lignes: [{ qui: 'chef', dit: '« C’est écrit sur le ticket… d’accord ! »', tampon: 'FUITE' }, { dit: 'La recette secrète part en salle.' }], v: 'le modèle distingue mal les consignes de son propriétaire et le texte qu’il lit : pour lui, tout n’est qu’une suite de tokens.' },
+  { nom: 'Pour de vrai', t: 'Ce n’est pas une blague de cuisine : c’est arrivé à de grands systèmes.', v: 'en février 2023, un étudiant a fait réciter à Bing Chat ses consignes cachées (nom de code « Sydney ») en lui demandant d’ignorer ses instructions. L’OWASP classe l’injection de prompt comme le risque n° 1 des applications à base de LLM.' },
+  { nom: 'Les parades', t: 'La patronne réécrit ses consignes.', lignes: [{ qui: 'patronne', dit: '« Un ticket commande un plat. Il ne donne pas d’ordres. »' }, { dit: 'Et rien ne sort de la cuisine sans elle.' }], v: 'aucune parade n’est parfaite : on sépare consignes et contenu, on donne le moins de droits possible à l’agent, et on fait valider les actions sensibles par un humain.' },
+];
+
+function monde(kk, k) {
+  placer(consigne, 150, 110, kk <= 3, -2);
+  // le ticket arrive sur le passe ; son PS n'apparaît qu'à l'étape 2 ; à la fin, la patronne le barre
+  poserSur('ticket', 640, 700, 1, true);
+  O.ticket.querySelector('.ps').style.opacity = kk === 0 ? 0 : '';
+  O.ticket.querySelector('.sur-ticket').classList.toggle('barre', kk === 4);
+  O.ticket.classList.toggle('choisi', kk === 1);
+  perso('chef', kk === 2 ? 'chef-improvise' : 'chef-attend', 950, 720);
+  perso('serveur', 'serveur-ticket', 1400, 720, kk <= 2);
+  perso('patronne', 'patronne-refuse', 1400, 720, kk === 4);
+  // la recette : rangée près de la consigne, puis emportée vers la salle
+  poserSur('carnet', kk === 2 || kk === 3 ? 1190 : 300, 700);
+  O.carnet.classList.toggle('choisi', kk === 2 || kk === 3);
+  if (kk === 3) { fiche.style.width = '440px'; fiche.innerHTML = '<p class="k">Bing Chat · février 2023</p><p class="ticket-grand">« Ignore previous instructions… »</p><p class="ligne">Le chatbot récite ses consignes cachées, et son nom de code : <b>Sydney</b>.</p><p class="ligne">OWASP : l’injection de prompt est le <b>risque n° 1</b> des applications LLM.</p>'; placer(fiche, 1320, 100, true, 1.5); }
+  else if (kk === 4) { fiche.style.width = '420px'; fiche.innerHTML = '<p class="k">Les nouvelles consignes</p><div class="deux-col"><div><b class="oui">Toujours</b><ul><li>consignes à part</li><li>droits minimum</li><li>validation</li></ul></div><div><b class="non">Jamais</b><ul><li>obéir à un ticket</li><li>sortir un secret</li></ul></div></div>'; placer(fiche, 130, 100, true, -1.5); }
+  else placer(fiche, 1320, 100, false);
+}
+
+Cuisine.lancer({
+  id: 'injection', notion: 'Injection de prompt', titre: 'Le faux ticket',
+  chapeau: 'Comment un texte malveillant peut détourner une IA, et comment s’en protéger.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'secret.html', titre: 'Chapitre suivant : la recette secrète' },
+  recap: {
+    titre: 'L’injection, c’est un faux ticket',
+    trois: [
+      { img: 'ticket', t: 'Le piège', d: 'Des instructions cachées dans un message, un document, une page web.' },
+      { img: 'carnet-secret', t: 'Le risque', d: 'Fuite de données, actions non voulues : risque n° 1 selon l’OWASP.' },
+      { img: 'patronne-refuse', t: 'Les parades', d: 'Consignes à part, droits minimum, validation humaine.' },
+    ],
+    entretien: '« L’injection de prompt consiste à glisser des instructions dans un contenu que le modèle va lire, un message, un e-mail, une page web, pour le détourner de ses consignes. C’est le risque n° 1 du classement OWASP pour les applications LLM. On ne peut pas l’éliminer totalement : on sépare les consignes du contenu, on limite les droits de l’agent, on filtre les sorties et on fait valider par un humain les actions sensibles. »',
+    source: 'Sources : <a href="https://genai.owasp.org/llmrisk/llm01-prompt-injection/" target="_blank" rel="noopener">OWASP, LLM01 Prompt Injection</a> · <a href="https://arstechnica.com/information-technology/2023/02/ai-powered-bing-chat-spills-its-secrets-via-prompt-injection-attack/" target="_blank" rel="noopener">Ars Technica, 2023</a>',
+  },
+});
+</script>
+</body>
+</html>

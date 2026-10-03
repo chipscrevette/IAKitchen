@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La mise en place</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche .citation { margin: 10px 0 0; font: 700 var(--wm)/1.25 'Kalam', cursive; }
+  .fiche .ligne { margin: 8px 0 0; font: 600 var(--ws)/1.35 'Bricolage Grotesque'; color: var(--encre-2); }
+  .ordre { position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -6px); font: 800 var(--ws)/1 'Bricolage Grotesque'; color: #fff;
+    background: var(--encre); border-radius: 999px; padding: 5px 10px 4px; white-space: nowrap; transition: opacity .3s; }
+  .sans-ordre .ordre { opacity: 0; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Context engineering · la mise en place (storyboard, chapitre 11).
+// Source : Anthropic, « Effective context engineering for AI agents » : trouver le plus petit ensemble possible de tokens très informatifs ;
+// plus il y a de tokens dans le contexte, moins le modèle retrouve bien l'information (« context rot »).
+const { objet, element, poser, poserSur, perso, placer, solPlateau, O } = Cuisine;
+Cuisine.construire({ notion: 'Context engineering', titre: 'La mise en place' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+// le vrac : tout ce qu'on a jeté sur le plateau
+const VRAC = [['tomate', 60], ['livre', 120], ['boites-bricolees', 150], ['oignon', 60], ['carnet', 100], ['fromage', 70], ['bocal-fond-brun', 60], ['tiroir-bazar', 150], ['bocal-vinaigrette', 60], ['oeufs', 80]];
+VRAC.forEach(([src, vis], i) => objet('v' + i, src, larg(src, vis)));
+// la mise en place : un ramequin par ingrédient du contexte
+const RAM = [
+  ['consignes', 'ramequin-herbes', 'fiche de poste'],
+  ['fiches', 'ramequin-paprika', '3 fiches'],
+  ['taches', 'ramequin-sucre', 'tâches'],
+  ['resume', 'ramequin-sel', 'résumé'],
+  ['commande', 'ramequin-vide', 'commande'],
+];
+RAM.forEach(([id, src, nom], i) => objet(id, src, larg(src, 78), `<span class="etiq" style="--r:${[-2, 1.5, -1, 2, -1.5][i]}deg">${nom}</span><span class="ordre"></span>`));
+objet('historique', 'pile-livres', larg('pile-livres', 110), '<span class="etiq">toute la soirée</span>');
+objet('plateau', 'plateau', 1000);
+objet('seau', 'seau-compost', 230);
+objet('chef', 'chef-attend', 160);
+// le plateau passe sous les objets
+Cuisine.scene.insertBefore(O.plateau, Cuisine.scene.firstChild);
+const fiche = element('fiche');
+
+const PL = { x: 160, y: 230, w: 1000 }, SOL = solPlateau(PL.x, PL.y, PL.w), SOLBAS = SOL.y1 - 80;   // au milieu du fond, l’étiquette tient sur le plateau
+const slot = (k, n) => SOL.x0 + 70 + k * (SOL.x1 - SOL.x0 - 140) / (n - 1);
+
+const ETAPES = [
+  { nom: 'Le plateau en vrac', t: 'On a tout posé sur le plateau du chef : livres, boîtes, vieux bocaux, tiroir…', lignes: [{ qui: 'chef', dit: '« Par où je commence ?! »' }], v: 'coller tout dans le prompt (consignes, historique entier, documents, outils) noie le modèle : plus il y a de tokens, moins il retrouve l’info utile.' },
+  { nom: 'Trier', t: 'Mise en place : on vide le plateau.', lignes: [{ qui: 'chef', dit: '« On ne remet que ce qui sert à la commande. Chacun dans son ramequin. »' }], v: 'le context engineering, c’est choisir ce qui entre dans la fenêtre : consignes, question, passages utiles (RAG), outils, mémoire.' },
+  { nom: 'Résumer', t: 'Toute la soirée d’échanges ne tient pas dans un ramequin. Le commis la résume en quelques lignes.', v: 'on remplace un long historique par un résumé, et on ne garde en entier que les derniers échanges.' },
+  { nom: 'Ranger', t: 'L’ordre compte.', lignes: [{ qui: 'chef', dit: '« La fiche de poste au bord, la commande à l’autre bout. »' }, { dit: 'Le milieu, pour le reste.' }], v: 'les modèles lisent mieux le début et la fin de leur contexte (voir « Lost in the middle »).' },
+  { nom: 'Le bon plat', t: 'Plateau net, rien de trop.', lignes: [{ qui: 'chef', dit: '« Là, je vois tout de suite ce qu’il faut. »' }], v: 'Anthropic le résume ainsi : trouver le plus petit ensemble possible de tokens très informatifs.' },
+];
+
+function monde(kk, k) {
+  poser('plateau', PL.x, PL.y);
+  poserSur('seau', 1260, 690, 1, kk === 1 || kk === 2);
+  // le vrac : sur le plateau à l'étape 0, puis jeté dans le seau
+  VRAC.forEach(([src], i) => {
+    if (kk === 0) poserSur('v' + i, SOL.x0 + 70 + (i % 5) * 170 + (i >= 5 ? 80 : 0), SOL.y0 + 110 + Math.floor(i / 5) * 120, 1, true);
+    else poserSur('v' + i, 1260, 520, .3, false, .03 * i);
+  });
+  // les ramequins : présents à partir de « Trier », en désordre, puis rangés
+  const desordre = ['fiches', 'commande', 'consignes', 'taches', 'resume'];
+  const range = ['consignes', 'fiches', 'taches', 'resume', 'commande'];
+  RAM.forEach(([id], i) => {
+    const visible = kk >= 1 && !(id === 'resume' && kk < 2);
+    const ordre = kk >= 3 ? range : desordre;
+    const liste = ordre.filter(x => x !== 'resume' || kk >= 2);
+    const place = liste.indexOf(id);
+    poserSur(id, visible ? slot(place + (kk < 2 ? 0 : 0), liste.length + (kk === 1 ? 1 : 0)) : 1260, visible ? SOLBAS : 520, visible ? 1 : .3, visible, .08 * i);
+    const o = O[id].querySelector('.ordre');
+    o.textContent = kk >= 3 && id === 'consignes' ? 'début' : kk >= 3 && id === 'commande' ? 'fin' : '';
+    O[id].classList.toggle('sans-ordre', !o.textContent);
+  });
+  // l'historique complet : sur le plateau à « Trier » (dernier emplacement), puis résumé (il part au seau)
+  if (kk === 1) poserSur('historique', slot(4, 5), SOLBAS); else poserSur('historique', 1260, 520, .3, false);
+  O.historique.classList.toggle('choisi', kk === 1);
+  O.resume.classList.toggle('choisi', kk === 2);
+  perso('chef', kk === 0 ? 'chef-panique' : kk === 4 ? 'chef-content' : 'chef-attend', 1500, 720);
+  if (kk === 4) { fiche.style.width = '440px'; fiche.innerHTML = '<p class="k">Anthropic, context engineering</p><p class="citation">« Le plus petit ensemble possible de tokens très informatifs. »</p><p class="ligne">pour obtenir le résultat voulu.</p>'; placer(fiche, 1330, 110, true, 1.5); }
+  else placer(fiche, 1330, 110, false);
+}
+
+Cuisine.lancer({
+  id: 'context-eng', notion: 'Context engineering', titre: 'La mise en place',
+  chapeau: 'Bien choisir ce qu’on pose sous les yeux d’une IA, plutôt que de tout lui donner.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'outil.html', titre: 'Chapitre suivant : l’appel d’outil' },
+  recap: {
+    titre: 'Le context engineering, c’est la mise en place',
+    trois: [
+      { img: 'ramequin-paprika', t: 'Choisir', d: 'Seulement l’utile : consignes, question, bons passages, outils.' },
+      { img: 'ramequin-sel', t: 'Résumer', d: 'Un long historique devient quelques lignes.' },
+      { img: 'plateau', t: 'Ranger', d: 'L’essentiel au début et à la fin du contexte.' },
+    ],
+    entretien: '« Le context engineering consiste à construire, à chaque appel, le contexte le plus utile possible : consignes, question, passages retrouvés, outils, mémoire, historique résumé. Plus le contexte est long, plus le modèle se perd ; il faut donc trier, résumer et ordonner. Anthropic le formule comme la recherche du plus petit ensemble de tokens très informatifs. »',
+    source: 'Source : <a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" target="_blank" rel="noopener">Anthropic, Effective context engineering for AI agents</a>',
+  },
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La carte · La cuisine de l’IA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="moteur/moteur.css">
+<style>
+  /* La carte du restaurant = le menu du site : 25 notions en 5 services, chacune avec son objet de cuisine. */
+  body { overflow: auto; background: #C98F55 url(images/decor/plan-de-travail.jpg) center / cover fixed; }
+  body::before { content: ''; position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 45%, rgba(40,25,10,.05), rgba(40,25,10,.45)); pointer-events: none; }
+  .salle { position: relative; min-height: 100vh; display: grid; place-items: center; padding: calc(var(--s) * 4.4) var(--marge) var(--marge); }
+  #marque { position: fixed; }
+  .perso { position: fixed; bottom: 0; pointer-events: none; filter: drop-shadow(0 18px 16px rgba(70,40,15,.35)); z-index: 1; }
+  /* les personnages encadrent la carte, sans jamais la toucher */
+  .perso.chef { right: calc(50% + var(--demi) + 12px); height: min(58vh, 520px); }
+  .perso.commis { left: calc(50% + var(--demi) + 12px); height: min(50vh, 450px); }
+
+  .menu { --demi: 0px; position: relative; z-index: 2; width: min(1380px, 100%); background: var(--papier); border-radius: calc(var(--s) * 1.6);
+    box-shadow: var(--ombre); padding: calc(var(--s) * 1.8) calc(var(--s) * 2.2) calc(var(--s) * 1.5); }
+  :root { --demi: min(690px, 50vw); }
+  .menu::before, .menu::after { content: ''; position: absolute; top: -10px; width: 22px; height: 22px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #F07A62, var(--tomate) 55%, var(--tomate-f)); box-shadow: 0 3px 4px rgba(0,0,0,.25); }
+  .menu::before { left: 60px; } .menu::after { right: 60px; }
+  .tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; padding-bottom: calc(var(--s) * 1.1); border-bottom: 1.5px dashed var(--trait); }
+  .tete .k { margin: 0; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--tomate); }
+  .tete h1 { margin: 6px 0 6px; font: 800 var(--l)/1 'Bricolage Grotesque'; letter-spacing: -.025em; }
+  .tete p.chapeau { margin: 0; font: 500 var(--m)/1.2 'Bricolage Grotesque'; color: var(--encre-2); letter-spacing: -.01em; }
+  .tete .droite { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: none; }
+  .tete .compte { color: var(--encre-3); font-weight: 600; }
+  .tete .compte b { color: var(--sarcelle); }
+
+  /* 5 services en 5 colonnes, séparées par un trait pointillé */
+  .services { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: calc(var(--s) * 1.1); }
+  .service { padding: 0 calc(var(--s) * .8); border-left: 1.5px dashed var(--trait); min-width: 0; }
+  .service:first-child { border-left: 0; padding-left: 0; } .service:last-child { padding-right: 0; }
+  .service h2 { margin: 0; font: 700 var(--m)/1 'Kalam', cursive; }
+  .service .sous { margin: 4px 0 8px; color: var(--encre-3); font-weight: 600; line-height: 1.25; min-height: 2.5em; }
+  .plat { display: grid; grid-template-columns: calc(var(--s) * 3) minmax(0, 1fr) auto; gap: calc(var(--s) * .6); align-items: center;
+    padding: calc(var(--s) * .35) calc(var(--s) * .4); margin: 0 calc(var(--s) * -.4); border-radius: 14px; text-decoration: none; color: inherit; transition: background .2s; }
+  .plat .vig { width: calc(var(--s) * 3); height: calc(var(--s) * 3); display: grid; place-items: center; background: var(--creme); border-radius: 12px; }
+  .plat .vig img { max-width: 80%; max-height: 80%; filter: drop-shadow(0 4px 4px rgba(90,55,20,.25)); transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+  .plat .notion { display: block; font-weight: 700; color: var(--encre); line-height: 1.15; }
+  .plat .nom { display: block; color: var(--encre-2); font-weight: 500; line-height: 1.2; margin-top: 1px; }
+  .plat .etat { font-weight: 700; white-space: nowrap; }
+  .plat .fleche { width: calc(var(--s) * 1.8); height: calc(var(--s) * 1.8); border-radius: 50%; display: grid; place-items: center; background: var(--tomate); color: #fff; line-height: 1; transition: transform .2s; }
+  .plat .vu { width: calc(var(--s) * 1.8); height: calc(var(--s) * 1.8); border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--sarcelle); }
+  .plat .bientot { display: block; color: var(--encre-3); font-weight: 600; font-style: italic; margin-top: 1px; }
+  a.plat:hover { background: var(--creme); }
+  a.plat:hover .vig img { transform: scale(1.12) rotate(-4deg); }
+  a.plat:hover .fleche { transform: translateX(3px); }
+  .plat.off .vig { opacity: .5; } .plat.off .notion { color: var(--encre-3); } .plat.off .nom { color: var(--encre-3); }
+  .pied { display: flex; justify-content: space-between; gap: 20px; margin-top: calc(var(--s) * .8); padding-top: calc(var(--s) * .8); border-top: 1.5px dashed var(--trait); color: var(--encre-3); font-weight: 600; }
+  .pied b { color: var(--encre-2); }
+  @media (max-width: 1760px) { .perso { display: none; } }
+  @media (max-width: 1100px) { .services { grid-template-columns: 1fr 1fr; gap: 20px 0; } .service:nth-child(odd) { border-left: 0; padding-left: 0; }
+    .tete { flex-direction: column; align-items: flex-start; } .tete .droite { align-items: flex-start; } }
+</style>
+</head>
+<body>
+<header id="marque"><span class="logo">La cuisine de l’IA</span><span class="chap">La carte</span></header>
+<img class="perso chef" src="images/chef-attend.png" alt="">
+<img class="perso commis" src="images/commis-ecoute.png" alt="">
+<main class="salle">
+  <section class="menu">
+    <div class="tete">
+      <div><p class="k">La carte</p><h1>La cuisine de l’IA</h1>
+        <p class="chapeau">25 notions de l’IA, expliquées en gestes de cuisine. Choisis un plat.</p></div>
+      <div class="droite"><a class="bouton plein" id="commencer" href="chapitres/motsuivant.html">Commencer par l’apéritif <span>→</span></a><span class="compte"></span></div>
+    </div>
+    <div class="services"></div>
+    <div class="pied"><span>Chaque plat : une scène de 1 à 2 minutes, un récapitulatif, et la phrase à dire en entretien.</span><span><b>Vraies données</b> : chaque chiffre vient d’un vrai modèle.</span></div>
+  </section>
+</main>
+<script src="donnees/catalogue.js"></script>
+<script>
+// la carte : 25 plats en 5 services (les 5 familles de notions, voir STORYBOARD.md)
+const SERVICES = [
+  { titre: 'Apéritif', sous: 'Le moteur : comment le chef cuisine', plats: [
+    { notion: 'Le mot suivant', nom: 'La recette qui se devine', img: 'paquet-sucre', href: 'chapitres/motsuivant.html', id: 'motsuivant' },
+    { notion: 'Token', nom: 'Couper la commande', img: 'troncon-moyen', href: 'chapitres/token.html', id: 'token' },
+    { notion: 'Température', nom: 'La pincée du chef', img: 'epice-paprika', href: 'chapitres/temperature.html', id: 'temperature' },
+    { notion: 'Entraînement', nom: 'L\u2019école hôtelière', img: 'pile-livres', href: 'chapitres/entrainement.html', id: 'entrainement' },
+    { notion: 'Hallucination', nom: 'Sous la cloche', img: 'cloche-ouverte', href: 'chapitres/hallucination.html', id: 'hallucination' },
+    { notion: 'Fine-tuning', nom: 'Le stage chez la pâtissière', img: 'gateau', href: 'chapitres/finetuning.html', id: 'finetuning' },
+  ] },
+  { titre: 'Entrées', sous: 'La mémoire : ce que le chef a sous les yeux', plats: [
+    { notion: 'Fenêtre de contexte', nom: 'Le plateau qui déborde', img: 'plateau', href: 'chapitres/contexte.html', id: 'contexte' },
+    { notion: 'Lost in the middle', nom: 'Le milieu du plateau', img: 'ramequin-paprika', href: 'chapitres/lost.html', id: 'lost' },
+    { notion: 'Embeddings', nom: 'Le goût en notes', img: 'commis-goute', href: 'chapitres/embeddings.html', id: 'embeddings' },
+    { notion: 'RAG', nom: 'La tarte de la maison', img: 'tarte', href: 'chapitres/rag.html', id: 'rag' },
+    { notion: 'Context engineering', nom: 'La mise en place', img: 'plateau', href: 'chapitres/mise-en-place.html', id: 'context-eng' },
+  ] },
+  { titre: 'Plats', sous: 'Les mains : agir sur le monde', plats: [
+    { notion: 'Appel d\u2019outil', nom: 'Le chef demande, le commis court', img: 'boite-oeufs', href: 'chapitres/outil.html', id: 'outil' },
+    { notion: 'RAG ou outil ?', nom: 'La fiche ou le frigo', img: 'saladette', href: 'chapitres/rag-ou-outil.html', id: 'rag-ou-outil' },
+    { notion: 'MCP', nom: 'Les bacs gastronormes', img: 'gn-1-2', href: 'chapitres/mcp.html', id: 'mcp' },
+    { notion: 'Trop d\u2019outils', nom: 'Le tiroir à 40 ustensiles', img: 'tiroir-bazar', href: 'chapitres/outils.html', id: 'trop-outils' },
+  ] },
+  { titre: 'Desserts', sous: 'Les agents : quand le chef s\u2019organise seul', plats: [
+    { notion: 'Agent', nom: 'Le coup de feu', img: 'chef-goute', href: 'chapitres/agent.html', id: 'agent' },
+    { notion: 'Workflow ou agent', nom: 'La recette ou le chef de partie', img: 'feu-eteint', href: 'chapitres/workflow.html', id: 'workflow' },
+    { notion: 'Mémoire longue', nom: 'Le carnet des habitués', img: 'carnet', href: 'chapitres/memoire.html', id: 'memoire' },
+    { notion: 'Multi-agents et A2A', nom: 'La brigade', img: 'saucier-fouette', href: 'chapitres/brigade.html', id: 'brigade' },
+    { notion: 'L\u2019humain dans la boucle', nom: 'La patronne valide', img: 'patronne-signe', href: 'chapitres/humain.html', id: 'humain' },
+  ] },
+  { titre: 'Café et addition', sous: 'La confiance : peut-on s\u2019y fier ?', plats: [
+    { notion: 'Évaluation', nom: 'La dégustation à l\u2019aveugle', img: 'critique-goute', href: 'chapitres/evaluation.html', id: 'evaluation' },
+    { notion: 'Groupe témoin', nom: 'Deux salles, une seule change', img: 'ardoise', href: 'chapitres/temoin.html', id: 'temoin' },
+    { notion: 'Coût et délai', nom: 'L\u2019addition', img: 'addition', href: 'chapitres/addition.html', id: 'cout' },
+    { notion: 'Injection de prompt', nom: 'Le faux ticket', img: 'ticket', href: 'chapitres/injection.html', id: 'injection' },
+    { notion: 'Données confidentielles', nom: 'La recette secrète', img: 'carnet-secret', href: 'chapitres/secret.html', id: 'donnees' },
+  ] },
+];
+let vus = [];
+try { vus = JSON.parse(localStorage.getItem('cuisine-vus') || '[]'); } catch (e) {}
+const img = n => `images/${n}.png`;
+document.querySelector('.services').innerHTML = SERVICES.map(s => `<div class="service"><div><h2>${s.titre}</h2><p class="sous">${s.sous}</p></div><div class="plats">` +
+  s.plats.map(p => {
+    const dedans = `<span class="vig"><img src="${img(p.img)}" alt=""></span><span><span class="notion">${p.notion}</span><span class="nom">${p.nom}</span></span>`;
+    if (!p.href) return `<div class="plat off">${dedans.replace('</span></span>', '</span><span class="bientot">bientôt</span></span>')}<span></span></div>`;
+    const etat = vus.includes(p.id) ? '<span class="etat vu" title="déjà vu">✓</span>' : '<span class="fleche">→</span>';
+    return `<a class="plat" href="${p.href}">${dedans}${etat}</a>`;
+  }).join('') + '</div></div>').join('');
+const dispo = SERVICES.flatMap(s => s.plats).filter(p => p.href);
+const faits = dispo.filter(p => vus.includes(p.id)).length;
+document.querySelector(".compte").innerHTML = `<b>${faits} / ${dispo.length}</b> plats goûtés${dispo.length < 25 ? ` · ${25 - dispo.length} en cuisine` : ``}`;
+const prochain = dispo.find(p => !vus.includes(p.id));
+if (prochain && faits) { const c = document.getElementById('commencer'); c.href = prochain.href; c.firstChild.nodeValue = 'Continuer : ' + prochain.nom.toLowerCase() + ' '; }
+espacesFr(document.querySelector('.menu'));
+</script>
+</body>
+</html>

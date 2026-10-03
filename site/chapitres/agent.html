@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le coup de feu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .fiche svg { display: block; }
+  .fiche .ligne { margin: 10px 0 0; font: 700 var(--ws)/1.3 'Kalam', cursive; }
+  .fiche .ligne b { font: 800 var(--ws)/1.2 'Bricolage Grotesque'; display: block; }
+  .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+  .deux > div { background: var(--creme); border-radius: 12px; padding: 14px 16px; }
+  .deux b { display: block; font: 800 var(--ws)/1.2 'Bricolage Grotesque'; color: var(--tomate); letter-spacing: .06em; text-transform: uppercase; }
+  .deux p { margin: 6px 0 0; font: 700 var(--ws)/1.3 'Kalam', cursive; }
+  .deux p.pour { font-family: 'Bricolage Grotesque'; font-weight: 600; color: var(--encre-2); }
+  .gardes { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+  .gardes li { font: 700 var(--ws)/1.3 'Kalam', cursive; padding-left: 30px; position: relative; }
+  .gardes li::before { content: '\2713'; position: absolute; left: 0; top: -1px; width: 22px; height: 22px; border-radius: 50%; background: var(--sarcelle);
+    color: #fff; font: 800 14px/22px 'Bricolage Grotesque'; text-align: center; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Agent · le coup de feu.
+// Sources : Anthropic, « Building effective agents » (workflow = chemin écrit d'avance, agent = le modèle décide lui-même de ses étapes
+// et de ses outils) ; ReAct (Yao et al. 2022) : réfléchir → agir → observer, en boucle.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Agent', titre: 'Le coup de feu' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('ticket', 'ticket', 260, `<div class="sur-ticket">Table 9 : menu pour 6, dont 1 végétarien, prêt dans 30 min.</div>`);
+objet('feu', 'feu-doux', 340);
+objet('poele', 'poele-steak', 470);
+objet('minuteur', 'minuteur', larg('minuteur', 100), '<span class="etiq">30 min</span>');
+objet('saliere', 'saliere', larg('saliere', 50));
+objet('sonnette', 'sonnette', larg('sonnette', 100));
+objet('tarte', 'tarte', larg('tarte', 170));
+objet('gateau', 'gateau', larg('gateau', 150));
+objet('chef', 'chef-attend', 160);
+objet('commis', 'commis-ecoute', 180);
+const fiche = element('fiche');
+
+// la poêle posée SUR le feu (géométrie mesurée, comme dans le chapitre Température)
+const GRILLE = [12, 890, 874, 900, 883], BOL = [52, 508, 508, 900, 613], FEU_X = 560, FEU_Y = 470;
+function centrer(id, [x0, x1, bas, W], largeur, dy = 0) {
+  const k = largeur / (x1 - x0), cx = (x0 + x1) / 2 * k, cy = (bas - .405 * (x1 - x0)) * k;
+  O[id].style.width = W * k + 'px'; poser(id, FEU_X - cx, FEU_Y - cy + dy);
+}
+
+// la boucle : réfléchir → agir → observer
+function boucle(actif, tour) {
+  const W = 360, H = 250, P = { r: [180, 40], a: [310, 190], o: [50, 190] }, N = { r: 'Réfléchir', a: 'Agir', o: 'Observer' };
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs><marker id="f" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#9A9186"/></marker></defs>`;
+  const arc = (a, b) => { const [x1, y1] = P[a], [x2, y2] = P[b], mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = 180 - mx, dy = 130 - my;
+    s += `<path d="M${x1 + (x2 - x1) * .22},${y1 + (y2 - y1) * .22} Q${mx - dx * .5},${my - dy * .5} ${x1 + (x2 - x1) * .78},${y1 + (y2 - y1) * .78}" fill="none" stroke="#9A9186" stroke-width="2.5" marker-end="url(#f)"/>`; };
+  arc('r', 'a'); arc('a', 'o'); arc('o', 'r');
+  Object.entries(P).forEach(([k, [x, y]]) => {
+    const on = k === actif;
+    s += `<rect x="${x - 66}" y="${y - 22}" width="132" height="44" rx="22" fill="${on ? '#D8432B' : '#F6EFE2'}"/>`;
+    s += `<text x="${x}" y="${y + 6}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="18" fill="${on ? '#fff' : '#5E574F'}">${N[k]}</text>`;
+  });
+  s += `<text x="180" y="138" text-anchor="middle" font-family="Kalam" font-weight="700" font-size="22" fill="#2A2A2E">tour ${tour}</text>`;
+  return s + '</svg>';
+}
+
+const ETAPES = [
+  { nom: 'La commande', t: 'Coup de feu : une grosse commande tombe. Aucune recette ne dit comment faire tout ça.', lignes: [{ qui: 'chef', dit: '« Menu pour 6, dont un végétarien, prêt dans 30 minutes… »' }], v: 'une tâche en plusieurs étapes, dont on ne connaît pas le chemin à l’avance.' },
+  { nom: 'Recette ou chef ?', t: 'Deux façons de s’organiser : suivre une recette écrite d’avance, ou laisser le chef de partie décider de la suite.', v: 'Anthropic distingue le workflow (le chemin est codé d’avance) et l’agent (le modèle décide lui-même de ses étapes et de ses outils).' },
+  { nom: 'Agir', t: 'Le chef réfléchit, puis agit.', lignes: [{ qui: 'chef', dit: '« Commis, le stock de légumes ! »' }], v: 'l’agent choisit un outil (un appel d’outil), l’application l’exécute, le résultat revient.' },
+  { nom: 'Observer', t: 'Il goûte la sauce.', lignes: [{ qui: 'chef', dit: '« Il manque quelque chose… »' }], v: 'l’agent lit le résultat de chaque action avant de décider la suite (la boucle ReAct : réfléchir, agir, observer).' },
+  { nom: 'Corriger', t: 'Il rectifie, puis recommence : réfléchir, agir, observer. Encore et encore.', lignes: [{ qui: 'chef', dit: '« Encore un tour : je goûte, je corrige. »' }], v: 'la boucle tourne jusqu’à ce que le but soit atteint… ou qu’une limite soit touchée.' },
+  { nom: 'Les garde-fous', t: 'Même en plein coup de feu : un minuteur, un nombre de tours limité, et le patron valide les achats.', v: 'on limite le nombre de tours et le budget, et on fait valider par un humain les actions irréversibles (payer, envoyer, supprimer).' },
+  { nom: 'Service !', t: 'Tout est prêt.', lignes: [{ qui: 'chef', dit: '« Service ! »' }], v: 'un agent = un modèle + des outils + une boucle + des garde-fous.' },
+];
+
+function monde(kk, k) {
+  poser('ticket', 1080, k < 0 ? -260 : 26);
+  centrer('feu', GRILLE, 330);
+  centrer('poele', BOL, 245, -78);
+  poserSur('minuteur', 260, 690); poserSur('saliere', 820, 690);
+  O.minuteur.classList.toggle('choisi', kk === 5);
+  poserSur('sonnette', 1180, 690, 1, kk === 6); O.sonnette.classList.toggle('choisi', kk === 6);
+  poserSur('tarte', 1400, 700, 1, kk === 6); poserSur('gateau', 1580, 700, 1, kk === 6);
+  const pose = { 2: 'chef-appelle', 3: 'chef-goute', 4: 'chef-sale', 6: 'chef-cuisine' }[kk] || 'chef-attend';
+  perso('chef', pose, 960, 700);
+  perso('commis', kk === 2 ? 'commis-court' : 'commis-ecoute', kk === 2 ? 1300 : 1220, 700, kk >= 2 && kk <= 5);
+  if (kk === 1) { fiche.style.width = '560px'; fiche.innerHTML = '<p class="k">Deux façons de s’organiser</p><div class="deux"><div><b>La recette</b><p class="pour">workflow</p><p>1. éplucher · 2. cuire · 3. dresser. Toujours dans cet ordre.</p></div><div><b>Le chef de partie</b><p class="pour">agent</p><p>Il regarde où il en est, et décide lui-même de la suite.</p></div></div>'; placer(fiche, 1300, 150, true, 1); }
+  else if (kk >= 2 && kk <= 4) { fiche.style.width = 'auto'; fiche.innerHTML = `<p class="k">La boucle du chef</p>${boucle({ 2: 'a', 3: 'o', 4: 'r' }[kk], kk === 4 ? 2 : 1)}`; placer(fiche, 1440, 130, true, 1.5); }
+  else if (kk === 5) { fiche.style.width = '420px'; fiche.innerHTML = '<p class="k">Les garde-fous</p><p class="t">Pas de chef sans limites</p><ul class="gardes"><li>30 minutes maximum</li><li>10 tours de boucle au plus</li><li>Le patron valide tout achat</li></ul>'; placer(fiche, 1420, 150, true, 1.5); }
+  else placer(fiche, 1420, 150, false);
+}
+
+Cuisine.lancer({
+  id: 'agent', notion: 'Agent', titre: 'Le coup de feu',
+  chapeau: 'Ce qu’est vraiment un agent IA : une boucle qui réfléchit, agit, observe… sous surveillance.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'workflow.html', titre: 'Chapitre suivant : la recette ou le chef de partie' },
+  recap: {
+    titre: 'Un agent, c’est un chef de partie',
+    trois: [
+      { img: 'chef-appelle', t: 'Agir', d: 'Il choisit lui-même ses actions et ses outils.' },
+      { img: 'chef-goute', t: 'Observer', d: 'Il vérifie le résultat de chaque action, puis décide la suite.' },
+      { img: 'minuteur', t: 'Garde-fous', d: 'Limites de temps, de tours, et validation humaine.' },
+    ],
+    entretien: '« Un agent, c’est un modèle qui choisit lui-même ses étapes et ses outils, en boucle : il réfléchit, agit via un appel d’outil, observe le résultat, et recommence jusqu’au but. À la différence d’un workflow, le chemin n’est pas écrit d’avance. On l’encadre avec des garde-fous : nombre de tours, budget, et validation humaine des actions irréversibles. »',
+    source: 'Sources : <a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" rel="noopener">Anthropic, Building effective agents</a> · <a href="https://arxiv.org/abs/2210.03629" target="_blank" rel="noopener">Yao et al., 2022, ReAct</a>',
+  },
+});
+</script>
+</body>
+</html>

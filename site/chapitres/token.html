@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Couper la commande</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  /* un tronçon = une fenêtre sur l'image de la carotte : il garde l'épaisseur et la couleur exactes de SA carotte */
+  .tr { filter: drop-shadow(0 8px 6px rgba(90,55,20,.28)); }
+  .tr .chair { position: absolute; inset: 0; overflow: hidden; }
+  .tr .chair img { position: absolute; max-width: none; filter: none; }
+  .tr .etiq { transition: opacity .35s; }
+  .tr .etiq.haut { top: auto; bottom: 100%; transform: translate(-50%, -4px) rotate(var(--r, -1.5deg)); }
+  .tr .etiq .esp { font-style: normal; opacity: .4; margin-right: 1px; }
+  .tr .num { position: absolute; left: 50%; top: calc(100% + 36px); transform: translateX(-50%); font: 800 var(--ws)/1 'Bricolage Grotesque';
+    color: #fff; background: var(--encre); border-radius: 7px; padding: 5px 8px 4px; white-space: nowrap; transition: opacity .35s; }
+  .sans-etiq .etiq, .sans-num .num { opacity: 0; }
+  .tr .face { position: absolute; width: 9px; border-radius: 50%; transition: opacity .3s;
+    background: radial-gradient(ellipse at center, #FCD29B 0 30%, #F6A95E 31% 62%, #E98A3F 63%); }
+  .tr .face.g { left: -4px; } .tr .face.d { right: -4px; }
+  .entiere .face { opacity: 0; }
+  .phrase-ruban { position: absolute; left: 0; top: 0; white-space: nowrap; font: 700 var(--ws)/1.2 'Kalam', cursive; background: var(--ruban);
+    padding: 4px 14px 2px; transition: opacity .4s, transform .9s cubic-bezier(.55,0,.25,1);
+    clip-path: polygon(0 10%, 2% 0, 50% 6%, 98% 0, 100% 12%, 99% 100%, 70% 94%, 30% 100%, 1% 92%); }
+  .ecran-balance { position: absolute; left: 30%; right: 30%; top: 71%; transform: translateY(-50%); text-align: center;
+    font: 800 var(--wm)/1 'Bricolage Grotesque'; color: var(--encre); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Token · couper la commande (storyboard, chapitre 2).
+// La commande est une longue carotte ; le commis la coupe en tronçons ; chaque tronçon = un token, sa longueur = la longueur du morceau de texte.
+// Découpage réel : tokenizer de GPT-4o (o200k_base), calculé avec transformers.js (outils/calculs/tokens.mjs).
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Token', titre: 'Couper la commande' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+const TOK = {
+  fr: ['Je', ' voudrais', ' la', ' tar', 'te', ' de', ' la', ' maison', ',', ' s', '’il', ' vous', ' plaît', '.'],
+  ids: [11302, 158443, 557, 7057, 411, 334, 557, 22828, 11, 265, 14828, 3500, 154950, 13],
+  en: ['I', ' would', ' like', ' the', ' house', ' pie', ',', ' please', '.'],
+  rare: ['ant', 'icon', 'stitution', 'nel', 'lement'],
+};
+const PHRASE_FR = TOK.fr.join('');
+
+// géométrie mesurée des images de carotte (px de l'image web) : début et fin de la chair, bande orange (haut, bas)
+const GEO = { 'carotte-longue': { x0: 190, x1: 895, h0: 97, h1: 199, W: 900, e0: 86, e1: 20, cy: 155 },
+              'carotte-fine': { x0: 160, x1: 896, h0: 104, h1: 194, W: 900, e0: 58, e1: 16, cy: 152 } };   // e0, e1 : épaisseur au début et à la pointe
+
+// fabrique une carotte découpée : les fanes (non comptées) + un tronçon par token, chacun = une tranche de l'image
+function carotte(pre, src, morceaux, longueurChair) {
+  const g = GEO[src], k = longueurChair / (g.x1 - g.x0), parLettre = longueurChair / morceaux.join('').length;
+  const bande = (g.h1 - g.h0) * k, img = left => `<img src="${Cuisine.A(src)}" alt="" style="width:${g.W * k}px;top:${-g.h0 * k}px;left:${left}px">`;
+  const fane = objet(pre + 'fane', null, g.x0 * k, `<div class="chair">${img(0)}</div>`);
+  fane.classList.add('tr'); fane.style.height = bande + 'px';
+  let deb = 0;
+  const pieces = morceaux.map((t, i) => {
+    const L = t.length * parLettre;
+    const ep = x => (g.e0 + (g.e1 - g.e0) * x / longueurChair) * k * .92, face = (c, x) => `<span class="face ${c}" style="height:${ep(x)}px;top:${(g.cy - g.h0) * k - ep(x) / 2}px"></span>`;
+    const d = objet(pre + i, null, L, `<div class="chair">${img(-(g.x0 * k + deb))}</div>` + face('g', deb) + face('d', deb + L) +
+      `<span class="etiq" style="--r:${[-2, 1.5, -1, 2, -1.5][i % 5]}deg">${t.startsWith(' ') ? '<i class="esp">·</i>' + t.slice(1) : t}</span><span class="num"></span>`);
+    d.classList.add('tr'); d.style.height = bande + 'px'; d.dataset.deb = deb; deb += L;
+    return { id: pre + i, L, t };
+  });
+  return { fane: pre + 'fane', pieces, bande, faneL: g.x0 * k, longueur: longueurChair };
+}
+// poser une carotte : entière (écart 0) ou coupée (écart entre les tronçons), la chair commençant en x, centrée sur y
+function aligner(c, x, y, ecart, vis = true) {
+  c.pieces.forEach(p => O[p.id].classList.toggle('entiere', !ecart));
+  poser(c.fane, x - c.faneL - (ecart ? 14 : 0), y - c.bande / 2, 1, vis);
+  let cx = x;
+  c.pieces.forEach((p, i) => { poser(p.id, cx, y - c.bande / 2, 1, vis, ecart ? .04 * i : 0); cx += p.L + ecart; });
+}
+const largeurCoupee = (c, ecart) => c.longueur + ecart * (c.pieces.length - 1);
+// tas de tronçons sur le plateau d'une balance (échelle réduite) ; les fanes restent sur la planche, cachées
+function tas(c, cx, cy, parRang, s = .5, vis = true) {
+  c.pieces.forEach((p, i) => {
+    const r = Math.floor(i / parRang), n = i % parRang, nb = Math.min(parRang, c.pieces.length - r * parRang);
+    poser(p.id, cx + (n - (nb - 1) / 2) * 30 - p.L * s / 2, cy - r * 15 - c.bande * s, s, vis, .03 * i);
+  });
+}
+
+// ── la scène ──
+objet('planche', 'planche', 900);
+objet('couteau', 'couteau', larg('couteau', 200));
+objet('balFR', 'balance', larg('balance', 220), `<span class="ecran-balance">14</span><span class="etiq">en français</span>`);
+objet('balEN', 'balance', larg('balance', 220), `<span class="ecran-balance">9</span><span class="etiq">en anglais</span>`);
+objet('plateau', 'plateau', 480);
+const FR = carotte('fr', 'carotte-longue', TOK.fr, 560);
+const EN = carotte('en', 'carotte-longue', TOK.en, TOK.en.join('').length * 560 / PHRASE_FR.length);
+const RARE = carotte('rare', 'carotte-fine', TOK.rare, 400);
+FR.pieces.forEach((p, i) => O[p.id].querySelector('.num').textContent = TOK.ids[i]);
+objet('commis', 'commis-ecoute', 180);
+objet('chef', 'chef-attend', 160);
+objet('serveur', 'serveur-ticket', 180);
+const ruban = document.createElement('div'); ruban.className = 'phrase-ruban cache'; ruban.dataset.sur = 'planche'; Cuisine.scene.appendChild(ruban);   // posé sur la planche, sous la carotte : voulu
+
+// la planche (mesurée) : face claire entre 8 et 81 % de la largeur, 19 et 70 % de la hauteur
+const PL = { x: 300, y: 170 }, FACE = { x0: 372, x1: 1029, y0: 282, y1: 584 }, MILIEU = (FACE.x0 + FACE.x1) / 2;
+
+const ETAPES = [
+  { nom: 'La commande', t: 'Une commande arrive.', lignes: [{ qui: 'serveur', dit: '« Table 4 : je voudrais la tarte de la maison, s’il vous plaît. »' }, { dit: 'Pour la cuisine, c’est une longue carotte : le chef ne la prend pas entière, il faut la couper.' }], v: 'un modèle ne lit pas le texte d’un bloc : il le reçoit découpé en morceaux, les tokens.' },
+  { nom: 'Couper', t: 'Le commis la coupe. Les mots courants font un gros tronçon.', lignes: [{ qui: 'commis', dit: '« “Tarte”, je la coupe en deux : “tar” et “te”. »' }], v: 'le vrai découpage de GPT-4o : 14 tokens. La longueur de chaque tronçon est celle de son morceau de texte ; l’espace (·) fait partie du morceau.' },
+  { nom: 'Numéroter', t: 'Il étiquette chaque tronçon avec son numéro du grand catalogue.', lignes: [{ qui: 'commis', dit: '« Le chef, lui, ne lit que les numéros. »' }], v: 'le vocabulaire de GPT-4o compte 200 019 tokens. Le modèle ne manipule que ces numéros, jamais les lettres.' },
+  { nom: 'Peser', t: 'Tous les tronçons vont sur la balance.', lignes: [{ qui: 'commis', dit: '« 14 morceaux ! »' }], v: 'les API comptent (et facturent) les tokens, pas les mots ni les lettres.' },
+  { nom: 'En anglais', t: 'La même commande, en anglais : une carotte plus courte.', lignes: [{ qui: 'commis', dit: '« Seulement 9 tronçons, cette fois. »' }], v: '« I would like the house pie, please. » : 9 tokens avec le même découpeur.' },
+  { nom: 'Comparer', t: '14 contre 9, pour dire la même chose.', lignes: [{ qui: 'commis', dit: '« En français, ça pèse plus lourd. Et on paie au poids ! »' }], v: 'pour cette phrase, le français coûte environ 1,5 fois plus cher que l’anglais.' },
+  { nom: 'Le mot rare', t: 'Un mot rare n’a pas de gros tronçon à lui.', lignes: [{ qui: 'commis', dit: '« “Anticonstitutionnellement” ? 5 morceaux. »' }], v: 'les mots rares sont découpés en plusieurs tokens ; même « tarte » seule devient « t » + « arte ».' },
+  { nom: 'Le plateau du chef', t: 'Les tronçons rejoignent le plateau du chef.', lignes: [{ qui: 'chef', dit: '« Mon plateau n’a qu’un nombre limité de places. »' }], v: 'la mémoire de travail du modèle (sa fenêtre de contexte) se compte aussi en tokens : 128 000 pour GPT-4o.' },
+];
+
+function monde(kk, k) {
+  poser('planche', PL.x, PL.y);
+  // le couteau : posé à côté de la planche, parallèle à son bord, sauf quand le commis coupe (il est dans sa main)
+  const coupe = kk === 1 || kk === 4 || kk === 6;
+  poserSur('couteau', 520, 718, 1, !coupe);
+  // ── la commande FR : entière, coupée, étiquetée, pesée, puis sur le plateau ──
+  const yC = 425;
+  if (kk === 0) aligner(FR, 470, yC, 0);
+  else if (kk === 1) aligner(FR, MILIEU - largeurCoupee(FR, 11) / 2, yC, 11);
+  else if (kk === 2) {                                   // deux rangées de 7, espacées selon la largeur des étiquettes
+    [FR.pieces.slice(0, 7), FR.pieces.slice(7)].forEach((rang, r) => {
+      const w = rang.map(p => Math.max(p.L, p.t.trim().length * 10 + 30)), tot = w.reduce((a, b) => a + b, 0) + 22 * (rang.length - 1);
+      let x = MILIEU - tot / 2;
+      rang.forEach((p, i) => { poser(p.id, x + (w[i] - p.L) / 2, (r ? 470 : 318) - FR.bande / 2, 1, true, .03 * i); x += w[i] + 22; });
+    });
+  }
+  else if (kk <= 6) tas(FR, 1470, 440, 5);
+  else {                                                  // dans le plateau du chef : 2 rangées
+    const sol = Cuisine.solPlateau(1340, 300, 480), s = .58;
+    [FR.pieces.slice(0, 7), FR.pieces.slice(7)].forEach((rang, r) => {
+      const tot = rang.reduce((a, p) => a + p.L * s, 0) + 10 * (rang.length - 1);
+      let x = (sol.x0 + sol.x1) / 2 - tot / 2;
+      rang.forEach(p => { poser(p.id, x, sol.y0 + 18 + r * 50, s, true, .03 * r); x += p.L * s + 10; });
+    });
+  }
+  // les fanes restent sur la planche, au bout, une fois la carotte coupée
+  if (kk <= 1) poser(FR.fane, (kk === 0 ? 470 : MILIEU - largeurCoupee(FR, 11) / 2 - 14) - FR.faneL, yC - FR.bande / 2);
+  else poser(FR.fane, 660, 668, .6, true, 0, -8);   // les fanes coupées, poussées sur le plan à côté du couteau
+  FR.pieces.forEach((p, i) => {
+    O[p.id].classList.toggle('sans-etiq', !(kk === 1 || kk === 2));
+    O[p.id].classList.toggle('sans-num', kk !== 2);
+    O[p.id].querySelector('.etiq').classList.toggle('haut', kk === 1 && i % 2 === 0);
+  });
+  // ── la même commande en anglais : coupée sur la planche libérée, puis pesée ──
+  const xEN = MILIEU - largeurCoupee(EN, 8) / 2;
+  if (kk < 4) aligner(EN, xEN, 420, 8, false);
+  else if (kk === 4) aligner(EN, xEN, 420, 8);
+  else if (kk <= 6) tas(EN, 1720, 440, 3);
+  else EN.pieces.forEach(p => poser(p.id, 2150, 440, .5, false));
+  if (kk === 4) poser(EN.fane, xEN - 14 - EN.faneL, 420 - EN.bande / 2); else poser(EN.fane, 720, 680, .6, kk > 4, 0, 6);
+  EN.pieces.forEach((p, i) => { O[p.id].classList.toggle('sans-etiq', kk !== 4); O[p.id].classList.add('sans-num'); O[p.id].querySelector('.etiq').classList.toggle('haut', i % 2 === 0); });
+  // ── le mot rare, coupé sur la planche ──
+  const xR = MILIEU - largeurCoupee(RARE, 12) / 2;
+  aligner(RARE, xR, 430, 12, kk >= 6);
+  if (kk > 6) poser(RARE.fane, 780, 672, .6, true, 0, -3);
+  RARE.pieces.forEach(p => { O[p.id].classList.add('sans-num'); O[p.id].classList.toggle('sans-etiq', kk !== 6); });
+  // la phrase, écrite sur un ruban collé le long de la carotte entière
+  ruban.textContent = PHRASE_FR; placer(ruban, 490, yC + FR.bande / 2 + 8, kk === 0, -1);
+  // les balances, puis le plateau
+  poserSur('balFR', kk === 7 ? 2150 : 1470, 610, 1, kk >= 3 && kk <= 6);
+  poserSur('balEN', kk === 7 ? 2150 : 1720, 610, 1, kk >= 5 && kk <= 6);
+  poser('plateau', 1340, 300, 1, kk === 7);
+  // les personnages
+  perso('commis', coupe ? 'commis-coupe' : kk === 2 ? 'commis-ecrit' : 'commis-ecoute', 215, 665);
+  perso('serveur', 'serveur-ticket', 1570, 700, kk === 0);
+  perso('chef', 'chef-attend', 1262, 700, kk === 7);
+}
+
+Cuisine.lancer({
+  id: 'token', notion: 'Token', titre: 'Couper la commande',
+  chapeau: 'Pourquoi une IA ne lit pas des mots, mais des morceaux de mots. Et pourquoi on paie au morceau.',
+  etapes: ETAPES, monde, duree: '2 minutes',
+  suivant: { href: 'temperature.html', titre: 'Chapitre suivant : la température' },
+  recap: {
+    titre: 'Le token, c’est un tronçon de la commande',
+    trois: [
+      { img: 'commis-coupe', t: 'Couper', d: 'Le texte est coupé en morceaux : des mots entiers, ou des bouts de mots.' },
+      { img: 'troncon-moyen', t: 'Numéroter', d: 'Chaque morceau a un numéro : c’est tout ce que le modèle voit.' },
+      { img: 'balance', t: 'Compter', d: 'On paie et on limite la mémoire du modèle en tokens.' },
+    ],
+    entretien: '« Un token est un morceau de texte : un mot courant, ou un bout de mot rare. Le modèle découpe le texte en tokens, chacun a un numéro dans un vocabulaire d’environ 200 000 entrées pour GPT-4o, et il ne manipule que ces numéros. On facture et on limite la fenêtre de contexte en tokens ; le français en consomme plus que l’anglais pour la même phrase. »',
+    source: 'Découpage réel : tokenizer de GPT-4o (o200k_base), via transformers.js',
+  },
+});
+</script>
+</body>
+</html>

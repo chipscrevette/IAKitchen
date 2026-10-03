@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Les bacs gastronormes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .etiq.non { background: var(--tomate); color: #fff; }
+  .etiq.oui { background: var(--sarcelle); color: #fff; }
+  .fiche svg { display: block; }
+  .fiche .ligne { margin: 12px 0 0; font: 700 var(--ws)/1.3 'Kalam', cursive; }
+  .fiche .ligne b { font: 800 var(--ws)/1.2 'Bricolage Grotesque'; display: block; }
+  .fiche .ligne span { color: var(--sarcelle); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre MCP · les bacs gastronormes.
+// La norme gastronorme (EN 631) est réelle : un bac GN 1/1 mesure 530 × 325 mm, et ses fractions (1/2, 1/3, 1/6…) rentrent dans tout
+// matériel « GN ». MCP joue le même rôle entre les IA et les outils : un format commun (messages JSON-RPC 2.0, tools/list puis tools/call).
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'MCP', titre: 'Les bacs gastronormes' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+const APPAREILS = [['saladette', 'Saladette', 360, 520], ['bain-marie', 'Bain-marie', 320, 960], ['four', 'Four', 230, 1370]];
+APPAREILS.forEach(([id, nom, vis]) => objet(id, id, larg(id, vis), `<span class="etiq">${nom}</span>`));
+objet('boites', 'boites-bricolees', larg('boites-bricolees', 250), '<span class="etiq non">ne rentre nulle part</span>');
+const BACS = [['gn-1-1', 'GN 1/1 · 53 × 32,5 cm', 250], ['gn-1-2', 'GN 1/2', 155], ['gn-1-3', 'GN 1/3', 155], ['gn-1-6', 'GN 1/6', 88]];
+BACS.forEach(([id, nom, vis]) => objet(id, id, larg(id, vis), `<span class="etiq">${nom}</span>`));
+objet('commis', 'commis-porte-bac', 180);
+const fiche = element('fiche');
+
+// 3 appareils × 4 fournisseurs : 12 adaptateurs sur mesure, ou 7 branchements sur une norme commune
+function schema(norme) {
+  const W = 300, H = 150, A = [30, 75, 120], F = [22, 57, 93, 128], ax = 26, fx = W - 26, hx = W / 2;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  const trait = (x1, y1, x2, y2, c) => s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>`;
+  if (norme) { A.forEach(y => trait(ax, y, hx, 75, '#2B8C83')); F.forEach(y => trait(hx, 75, fx, y, '#2B8C83')); s += `<rect x="${hx - 22}" y="53" width="44" height="44" rx="8" fill="#2B8C83"/><text x="${hx}" y="82" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="800" font-size="18" fill="#fff">GN</text>`; }
+  else A.forEach(ya => F.forEach(yf => trait(ax, ya, fx, yf, '#D8432B')));
+  A.forEach(y => s += `<circle cx="${ax}" cy="${y}" r="11" fill="#2A2A2E"/>`);
+  F.forEach(y => s += `<rect x="${fx - 10}" y="${y - 10}" width="20" height="20" rx="4" fill="#E0A21B"/>`);
+  return s + '</svg>';
+}
+const ficheCalcul = () => `<p class="k">3 appareils · 4 fournisseurs</p>
+  <p class="ligne"><b>Sans norme : 12 adaptateurs</b>un par couple appareil × fournisseur</p>${schema(false)}
+  <p class="ligne"><b>Avec une norme : 7 branchements</b>chacun se branche une fois, sur le format commun</p>${schema(true)}`;
+const ficheDialogue = () => `<p class="k">Comment le commis s’en sert</p><p class="t">Deux questions</p>
+  <p class="ligne"><b>1. « Qu’est-ce que tu contiens ? »</b><span>herbes, sauce tomate, maïs, riz</span></p>
+  <p class="ligne"><b>2. « Donne-moi la sauce. »</b><span>la sauce tomate</span></p>`;
+
+const ETAPES = [
+  { nom: 'Le bazar', t: 'Chaque fournisseur livre dans ses propres boîtes. Aucune ne rentre dans les appareils de la cuisine.', v: 'sans standard, chaque application d’IA doit écrire un connecteur sur mesure pour chaque outil (Drive, Slack, base de données…).' },
+  { nom: 'Le calcul', t: '3 appareils et 4 fournisseurs : sans norme, il faut 12 adaptateurs. Avec une norme commune, 7 branchements suffisent.', v: 'N applications × M outils = N × M connecteurs à écrire et à maintenir. Avec un standard : N + M.' },
+  { nom: 'La norme', t: 'Les cuisines pros ont une norme : les bacs gastronormes. Le bac entier fait 53 × 32,5 cm, les autres en sont des fractions.', v: 'MCP (Model Context Protocol) est ce format commun entre une IA et ses outils. Anthropic le compare à un port USB-C.' },
+  { nom: 'Tout rentre', t: 'N’importe quel bac rentre dans n’importe quel appareil de la norme.', v: 'un serveur MCP écrit une seule fois marche avec toutes les applications compatibles (Claude, ChatGPT, VS Code…).' },
+  { nom: 'Deux questions', t: 'Le commis demande d’abord au bac ce qu’il contient, puis se sert.', lignes: [{ qui: 'commis', dit: '« Qu’est-ce que tu contiens ? … Alors la sauce tomate, s’il te plaît. »' }], v: 'l’application demande la liste des outils d’un serveur (tools/list), puis en appelle un (tools/call). MCP ne remplace pas l’appel d’outil : il standardise la prise.' },
+];
+
+function monde(kk, k) {
+  // à partir de « Tout rentre », la saladette et le bain-marie sont remplis de bacs ; le grand bac entier va au four
+  const pleins = kk >= 3;
+  APPAREILS.forEach(([id, nom, , cx]) => {
+    const src = pleins && id === 'saladette' ? 'saladette-pleine' : pleins && id === 'bain-marie' ? 'bain-marie-plein' : id;
+    const img = O[id].querySelector('img'); if (img.getAttribute('src') !== Cuisine.A(src)) img.setAttribute('src', Cuisine.A(src));
+    poserSur(id, cx, 440);
+    const e = O[id].querySelector('.etiq');
+    e.className = 'etiq' + (kk === 3 ? ' oui' : '');
+    e.textContent = (kk === 3 ? '✓ ' : '') + nom;
+  });
+  poserSur('boites', 560, 690, 1, kk <= 1);
+  // les bacs : alignés devant (la norme) ; ensuite ils sont DANS les appareils (seul le grand bac attend devant le four)
+  const devant = [[250, 690], [470, 690], [680, 690], [860, 690]];
+  BACS.forEach(([id], i) => {
+    const four = id === 'gn-1-1' && kk >= 3;
+    poserSur(id, four ? 1370 : devant[i][0], devant[i][1], 1, kk === 2 || four, .08 * i);
+  });
+  perso('commis', 'commis-porte-bac', 1150, 720, kk === 4);
+  if (kk === 1) { fiche.style.width = '360px'; fiche.innerHTML = ficheCalcul(); placer(fiche, 1520, 90, true, 1.5); }
+  else if (kk === 4) { fiche.style.width = '420px'; fiche.innerHTML = ficheDialogue(); placer(fiche, 150, 530, true, -1.5); }
+  else placer(fiche, 1520, 90, false);
+}
+
+Cuisine.lancer({
+  id: 'mcp', notion: 'MCP', titre: 'Les bacs gastronormes',
+  chapeau: 'Pourquoi il faut une norme commune pour brancher des outils sur une IA. Et ce que fait MCP.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'outils.html', titre: 'Chapitre suivant : le tiroir à 40 ustensiles' },
+  recap: {
+    titre: 'MCP, c’est la norme des bacs',
+    trois: [
+      { img: 'boites-bricolees', t: 'Sans norme', d: 'Un adaptateur par couple application × outil : N × M.' },
+      { img: 'gn-1-1', t: 'Un format commun', d: 'Chaque outil se branche une fois : N + M.' },
+      { img: 'saladette-pleine', t: 'Tout se branche', d: 'Un serveur MCP marche dans toute application compatible.' },
+    ],
+    entretien: '« MCP, le Model Context Protocol, est un standard ouvert lancé par Anthropic pour connecter des applications d’IA à des outils et des données. Au lieu d’écrire un connecteur par couple application × outil, chaque outil expose un serveur MCP : l’application découvre ses outils (tools/list) puis les appelle (tools/call). MCP standardise l’appel d’outil, il ne le remplace pas. »',
+    source: 'Sources : <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">modelcontextprotocol.io</a> · norme gastronorme EN 631',
+  },
+});
+</script>
+</body>
+</html>

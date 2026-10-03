@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L’addition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .tarifs { margin-top: 12px; display: grid; grid-template-columns: 1fr auto auto; gap: 8px 18px; align-items: baseline; }
+  .tarifs span { font: 700 var(--ws)/1.2 'Kalam', cursive; }
+  .tarifs b { font: 800 var(--ws)/1 'Bricolage Grotesque'; color: var(--encre-3); text-align: right; }
+  .tarifs i { font: 800 var(--wm)/1 'Bricolage Grotesque'; font-style: normal; text-align: right; }
+  .tarifs i.s { color: var(--tomate); }
+  .fiche .ligne { margin: 8px 0 0; font: 600 var(--ws)/1.35 'Bricolage Grotesque'; color: var(--encre-2); }
+  .fiche .ligne b { color: var(--encre); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Coût et délai · l'addition (storyboard, chapitre 23).
+// Tarifs réels de l'API Claude (platform.claude.com, septembre 2026), en dollars par million de tokens (entrée / sortie) :
+// Haiku 4.5 : 1 / 5 · Sonnet 5 : 2 / 10 · Opus 5.5 : 4 / 20. Cache : relire du contexte déjà en cache coûte 0,1 × le prix d'entrée
+// (0,05 × sur Opus 5.5) ; Batch API : -50 %. Exemple de la documentation : 10 000 tickets de support avec Haiku 4.5 ≈ 37 $.
+const { objet, element, poser, poserSur, perso, placer, O } = Cuisine;
+Cuisine.construire({ notion: 'Coût et délai', titre: 'L’addition' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+// l'addition d'une question de 1 000 tokens et d'une réponse de 1 000 tokens avec Sonnet 5 (2 $ et 10 $ le million)
+objet('addition', 'addition', larg('addition', 320), `<div class="sur-addition"><p class="t">Sonnet 5</p><div class="lignes">
+  <p class="lu"><span>1 000 lus</span><span>0,002 $</span></p><p class="ecrit"><span>1 000 écrits</span><span>0,010 $</span></p><p></p>
+  <p class="total"><span>Total</span><span>0,012 $</span></p></div></div>`);
+objet('piecesLu', 'pieces', larg('pieces', 70), '<span class="etiq"></span>');
+objet('piecesEcrit', 'pieces', larg('pieces', 160), '<span class="etiq"></span>');
+objet('sablier', 'sablier', larg('sablier', 80), '<span class="etiq">plus lent</span>');
+objet('chef', 'chef-attend', 160);
+objet('commis', 'commis-ecoute', 180);
+const fiche = element('fiche');
+const etiq = (id, t) => O[id].querySelector('.etiq').innerHTML = t;
+
+const ETAPES = [
+  { nom: 'L’addition', t: 'En fin de service, l’addition : on paie ce que le chef a lu, et ce qu’il a écrit.', v: 'une API d’IA facture au token : les tokens d’entrée (la question, le contexte) et ceux de sortie (la réponse).' },
+  { nom: 'Écrire coûte plus', t: 'Écrire coûte cinq fois plus cher que lire : la petite pile paie la lecture, la grosse l’écriture.', v: 'chez Claude Sonnet 5 : 2 $ le million de tokens lus, 10 $ le million de tokens écrits.' },
+  { nom: 'Grand chef, petit commis', t: 'Les mêmes piles, autre addition : le grand chef coûte quatre fois plus que le commis, et prend plus de temps par plat.', lignes: [{ qui: 'chef', dit: '« Moi, je coûte plus cher. Et je prends mon temps. »' }], v: 'Opus 5.5 : 4 $ / 20 $ par million de tokens ; Haiku 4.5 : 1 $ / 5 $. Les plus gros modèles sont aussi, en général, plus lents à répondre.' },
+  { nom: 'Le bon cuisinier', t: 'Pour les plats simples, le commis suffit : c’est rapide et bon marché.', lignes: [{ qui: 'commis', dit: '« Les plats simples, je m’en charge. »' }], v: 'selon la documentation d’Anthropic, traiter 10 000 tickets de support avec Haiku 4.5 coûte environ 37 $. On garde le gros modèle pour les tâches difficiles.' },
+  { nom: 'Les astuces', t: 'Deux astuces de la maison : ne pas relire ce qui est déjà sur le plateau, et grouper les commandes qui ne sont pas pressées.', v: 'le cache : relire un contexte déjà en cache coûte 10 % du prix normal. Le traitement par lot (Batch API) : –50 %, avec une réponse différée.' },
+];
+
+function monde(kk, k) {
+  const brigade = kk >= 2;
+  poserSur('addition', 300, 700);
+  O.addition.classList.toggle('choisi', kk <= 1);
+  O.addition.querySelector('.ecrit').classList.toggle('rouge', kk === 1);
+  // étape 2 : les piles « lu / écrit » deviennent celles du commis et du chef (même rapport de 1 à 5 environ)
+  poserSur('piecesLu', brigade ? 1170 : 590, 665, 1, kk >= 1);   // un peu en retrait : l’image a une marge sous les pièces, l’étiquette doit rester au-dessus du dock
+  poserSur('piecesEcrit', 760, 665, 1, kk >= 1);
+  etiq('piecesLu', brigade ? 'Haiku 4.5' : 'lu · 0,002 $');
+  etiq('piecesEcrit', brigade ? 'Opus 5.5' : 'écrit · 0,010 $');
+  poserSur('sablier', 590, 680, 1, kk === 2);
+  perso('chef', 'chef-attend', brigade ? 940 : 1010, 720);
+  perso('commis', 'commis-ecoute', 1330, 720, brigade);
+  O.commis.classList.toggle('choisi', kk === 3);
+  if (kk === 2 || kk === 3) {
+    fiche.style.width = '440px';
+    fiche.innerHTML = '<p class="k">Tarifs de l’API Claude · par million de tokens</p><div class="tarifs"><span></span><b>lus</b><b>écrits</b>' +
+      '<span>Opus 5.5 · le chef</span><i>4 $</i><i class="s">20 $</i><span>Sonnet 5</span><i>2 $</i><i class="s">10 $</i><span>Haiku 4.5 · le commis</span><i>1 $</i><i class="s">5 $</i></div>' +
+      (kk === 3 ? '<p class="ligne">10 000 tickets de support avec Haiku 4.5 : <b>environ 37 $</b>.</p>' : '');
+    placer(fiche, 1340, 100, true, 1.5);
+  } else if (kk === 4) {
+    fiche.style.width = '500px';
+    fiche.innerHTML = '<p class="k">Les astuces de la maison</p><div class="deux-col"><div><b class="oui">Le cache</b><ul><li>déjà sur le plateau</li><li>relu à 10 % du prix</li></ul></div><div><b class="oui">Le lot</b><ul><li>pas pressé</li><li>groupé : –50 %</li></ul></div></div>';
+    placer(fiche, 1280, 100, true, 1);
+  } else placer(fiche, 1340, 100, false);
+}
+
+Cuisine.lancer({
+  id: 'cout', notion: 'Coût et délai', titre: 'L’addition',
+  chapeau: 'Combien coûte une IA, et comment choisir le bon modèle pour le bon usage.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'injection.html', titre: 'Chapitre suivant : le faux ticket' },
+  recap: {
+    titre: 'Le coût, c’est l’addition au token',
+    trois: [
+      { img: 'addition', t: 'Au token', d: 'On paie ce qui est lu et ce qui est écrit, l’écrit plus cher.' },
+      { img: 'pieces', t: 'Le bon modèle', d: 'Petit modèle pour les tâches simples, grand pour les difficiles.' },
+      { img: 'sablier', t: 'Le délai', d: 'Plus gros, plus lent : le temps de réponse compte aussi.' },
+    ],
+    entretien: '« Le coût d’un LLM se calcule au token, en entrée et en sortie, la sortie coûtant plusieurs fois plus cher. Les prix varient d’un facteur 4 entre Haiku et Opus chez Anthropic. On choisit donc le plus petit modèle suffisant pour chaque tâche, on réduit le contexte, on utilise le cache pour ce qui se répète et le traitement par lot pour ce qui n’est pas urgent. »',
+    source: 'Source : <a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener">Tarifs de l’API Claude</a> (septembre 2026)',
+  },
+});
+</script>
+</body>
+</html>

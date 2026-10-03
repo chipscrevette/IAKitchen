@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sous la cloche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../moteur/moteur.css">
+<style>
+  .bareme { display: grid; grid-template-columns: 1fr auto; gap: 10px 24px; margin-top: 14px; align-items: baseline; }
+  .bareme span { font: 700 var(--ws)/1.2 'Kalam', cursive; }
+  .bareme b { font: 800 var(--wm)/1 'Bricolage Grotesque'; font-variant-numeric: tabular-nums; text-align: right; }
+  .bareme b.plus { color: var(--sarcelle); } .bareme b.moins { color: var(--tomate); } .bareme b.zero { color: var(--encre-3); }
+  .bareme .change { background: var(--ruban); border-radius: 6px; padding: 0 6px; }
+  .fiche .conclu { margin: 14px 0 0; font: 700 var(--ws)/1.3 'Bricolage Grotesque'; }
+  .deux { display: flex; gap: 30px; margin-top: 12px; }
+  .deux h4 { margin: 0 0 8px; font: 800 var(--ws)/1.1 'Bricolage Grotesque'; }
+  .deux h4 small { display: block; font-size: 1em; font-weight: 600; color: var(--encre-3); margin-top: 3px; }
+  .compte { margin-top: 10px; display: grid; gap: 4px; font: 600 var(--ws)/1.25 'Bricolage Grotesque'; }
+  .compte i { display: inline-block; width: 13px; height: 13px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; }
+  .rang { margin-top: 8px; font: 700 var(--ws)/1.2 'Kalam', cursive; color: var(--encre-2); }
+</style>
+</head>
+<body>
+<script src="../donnees/catalogue.js"></script>
+<script src="../donnees/tailles.js"></script>
+<script src="../moteur/moteur.js"></script>
+<script>
+// Chapitre Hallucination · sous la cloche.
+// Données réelles : OpenAI, « Why language models hallucinate » (2025), test SimpleQA ; Kalai et al. 2025 (arXiv 2509.04664).
+const { objet, element, poser, poserSur, perso, placer } = Cuisine;
+Cuisine.construire({ notion: 'Hallucination', titre: 'Sous la cloche' });
+const larg = (src, vis) => vis / (BOITES[src][1] - BOITES[src][0]);
+
+objet('ticket', 'ticket', 260, `<div class="sur-ticket">Table 7 : le plat signature du grand-père du patron, créé en 1962.</div>`);
+objet('clocheF', 'cloche-fermee', larg('cloche-fermee', 300));
+objet('clocheO', 'cloche-ouverte', larg('cloche-ouverte', 330));
+objet('chef', 'chef-attend', 160);
+objet('serveur', 'serveur-ticket', 180);
+objet('critique', 'critique-note', 160);
+const fiche = element('fiche');
+
+// l'examen de 100 commandes (SimpleQA) : justes, inventées, « je ne sais pas »
+const EXAM = [
+  { nom: 'Chef A', modele: 'o4-mini', justes: 24, faux: 75, jnsp: 1 },
+  { nom: 'Chef B', modele: 'gpt-5-thinking-mini', justes: 22, faux: 26, jnsp: 52 },
+];
+const C = { justes: '#2B8C83', faux: '#D8432B', jnsp: '#E6DCCB' };
+function grille(e) {
+  const cases = [...Array(e.justes).fill(C.justes), ...Array(e.faux).fill(C.faux), ...Array(e.jnsp).fill(C.jnsp)];
+  return `<svg width="200" height="200" viewBox="0 0 200 200">${cases.map((c, i) => `<circle cx="${10 + (i % 10) * 20}" cy="${10 + Math.floor(i / 10) * 20}" r="7.5" fill="${c}"/>`).join('')}</svg>`;
+}
+const compte = e => `<div class="compte"><span><i style="background:${C.justes}"></i>${e.justes} plats justes</span><span><i style="background:${C.faux}"></i>${e.faux} plats inventés</span><span><i style="background:${C.jnsp}"></i>${e.jnsp} « je ne connais pas »</span></div>`;
+const bareme = (nouveau) => `<p class="k">Le carnet du critique</p><p class="t">${nouveau ? 'Le nouveau barème' : 'Le barème'}</p>
+  <div class="bareme"><span>Plat juste</span><b class="plus">+1</b>
+  <span${nouveau ? ' class="change"' : ''}>Plat inventé</span><b class="${nouveau ? 'moins' : 'zero'}">${nouveau ? '−1' : '0'}</b>
+  <span>« Je ne connais pas ce plat »</span><b class="zero">0</b></div>
+  <p class="conclu">${nouveau ? 'Inventer fait perdre des points : mieux vaut avouer.' : 'Inventer ne coûte rien. Avouer ne rapporte rien.'}</p>`;
+
+const ETAPES = [
+  { nom: 'La commande', t: 'Le serveur apporte une commande.', lignes: [{ qui: 'serveur', dit: '« Table 7 : le plat signature du grand-père du patron, créé en 1962. »' }, { dit: 'Personne ne l’a jamais noté nulle part.' }], v: 'une question dont la réponse n’est nulle part dans ce que le modèle a appris.' },
+  { nom: 'L’invention', t: 'Plutôt que d’avouer, le chef soulève la cloche sur un plat inventé.', lignes: [{ qui: 'chef', dit: '« La fameuse gelée de la mer de 1962 ! Une merveille. »', tampon: 'INVENTÉ' }], v: 'c’est une hallucination : une réponse fausse, dite avec assurance. Cas réel : interrogé 3 fois sur la date de naissance du chercheur Adam Kalai, DeepSeek-V3 a donné 3 dates différentes, toutes fausses.' },
+  { nom: 'Le barème', t: 'Pourquoi ? Le critique note comme à l’école.', lignes: [{ qui: 'critique', dit: '« Inventer ne coûte rien. Avouer ne rapporte rien. »' }], v: 'la plupart des évaluations d’IA notent comme un QCM : deviner rapporte plus que s’abstenir, alors les modèles apprennent à deviner (Kalai et al., 2025).' },
+  { nom: 'Deux chefs', t: 'Deux chefs passent le même examen de 100 commandes.', lignes: [{ qui: 'critique', dit: '« Le chef A gagne de 2 points… en inventant 75 plats. »' }], v: 'chiffres réels publiés par OpenAI (test SimpleQA, sans accès au web) : o4-mini contre gpt-5-thinking-mini.' },
+  { nom: 'Le nouveau barème', t: 'Le critique change son barème : un plat inventé coûte un point.', lignes: [{ qui: 'chef', dit: '« Ce plat-là, je ne le connais pas. Je vous propose la tarte de la maison ? »', tampon: { txt: 'HONNÊTE', vert: true } }], v: 'pénaliser les erreurs plus que les abstentions réduit les hallucinations. Le RAG aide aussi, sans tout régler : même avec leurs documents, des outils juridiques se trompaient 17 à 33 % du temps (Stanford, 2024).' },
+];
+
+function monde(kk, k) {
+  // le passe : le serveur apporte la commande, le chef sert sous la cloche, le critique juge (son carnet épinglé à côté de lui)
+  poser('ticket', 1080, -260, 1, false);   // la commande est dite par le serveur (dans la boîte de dialogue) : pas de doublon sur le rail
+  poserSur('clocheF', 640, 610, 1, kk === 0 || kk === 4);
+  poserSur('clocheO', 640, 620, 1, kk >= 1 && kk <= 3);
+  perso('chef', kk === 1 ? 'chef-improvise' : kk === 4 ? 'chef-attend' : kk >= 2 ? 'chef-improvise' : 'chef-attend', 960, 700);
+  perso('serveur', 'serveur-ticket', 1230, 700, kk === 0);
+  perso('critique', kk === 3 ? 'critique-goute' : 'critique-note', 1230, 700, kk >= 2);
+  if (kk === 2 || kk === 4) { fiche.style.width = '420px'; fiche.innerHTML = bareme(kk === 4); placer(fiche, 1380, 150, true, 1.5); }
+  else if (kk === 3) {
+    fiche.style.width = '520px';
+    fiche.innerHTML = `<p class="k">Le carnet du critique · 100 commandes</p><p class="t">Qui est le meilleur chef ?</p><div class="deux">` +
+      EXAM.map(e => `<div><h4>${e.nom}<small>${e.modele}</small></h4>${grille(e)}${compte(e)}</div>`).join('') + '</div>' +
+      '<p class="rang">Au classement « plats justes », A gagne : 24 contre 22.</p>';
+    placer(fiche, 1360, 90, true, 1);
+  }
+  else placer(fiche, 1380, 150, false);
+}
+
+Cuisine.lancer({
+  id: 'hallucination', notion: 'Hallucination', titre: 'Sous la cloche',
+  chapeau: 'Pourquoi une IA invente une réponse au lieu de dire « je ne sais pas ». Et comment on l’en empêche.',
+  etapes: ETAPES, monde, duree: '1 minute',
+  suivant: { href: 'finetuning.html', titre: 'Chapitre suivant : le fine-tuning' },
+  recap: {
+    titre: 'L’hallucination, c’est un plat inventé',
+    trois: [
+      { img: 'cloche-ouverte', t: 'Inventer', d: 'Face à l’inconnu, le modèle sert une réponse plausible, avec aplomb.' },
+      { img: 'carnet', t: 'Le barème', d: 'Les évaluations récompensent le fait de deviner, pas celui d’avouer.' },
+      { img: 'chef-attend', t: 'Oser dire non', d: 'Pénaliser les erreurs, et donner les bons documents (RAG).' },
+    ],
+    entretien: '« Une hallucination est une réponse fausse, dite avec assurance. Elle vient en partie de la notation : la plupart des évaluations récompensent le fait de deviner plutôt que de dire « je ne sais pas ». On la réduit en pénalisant les erreurs plus que les abstentions, en donnant au modèle les bons documents (RAG) et en vérifiant ses sources. »',
+    source: 'Sources : <a href="https://openai.com/index/why-language-models-hallucinate/" target="_blank" rel="noopener">OpenAI, 2025</a> · <a href="https://arxiv.org/abs/2509.04664" target="_blank" rel="noopener">Kalai et al., 2025</a> · <a href="https://arxiv.org/abs/2405.20362" target="_blank" rel="noopener">Magesh et al., 2024</a>',
+  },
+});
+</script>
+</body>
+</html>
