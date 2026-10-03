@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Audit UX</title>
+<!-- Outil : ouvre chaque chapitre dans un cadre à la taille voulue (?t=1280x720) et y lance audit-ux.js ; résultat JSON dans #sortie.
+     Usage : chrome --headless --dump-dom "http://localhost:4740/outils/controle/audit-tout.html?t=1280x720" -->
+<pre id="sortie">…</pre>
+<script type="module">
+const q = new URLSearchParams(location.search), [W, H] = (q.get('t') || '1280x720').split('x').map(Number);
+const CHAP = (q.get('c') || 'motsuivant,token,temperature,entrainement,hallucination,finetuning,contexte,lost,embeddings,rag,mise-en-place,outil,rag-ou-outil,mcp,outils,agent,workflow,memoire,brigade,humain,evaluation,temoin,addition,injection,secret').split(',');
+const attendre = ms => new Promise(r => setTimeout(r, ms));
+const tout = {};
+for (const c of CHAP) {
+  const f = document.createElement('iframe'); f.style.cssText = `width:${W}px;height:${H}px;border:0`;
+  f.src = '../../site/chapitres/' + c + '.html#0'; document.body.appendChild(f);
+  await new Promise(r => f.onload = r); await attendre(400);
+  const m = await f.contentWindow.eval("import('/outils/controle/audit-ux.js?v=' + Date.now())");
+  tout[c] = await m.audit(); f.remove();
+}
+document.getElementById('sortie').textContent = JSON.stringify(tout);
+</script>

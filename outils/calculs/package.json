@@ -1,0 +1,16 @@
+{
+  "name": "iakitchen-calculs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Calculs réels des chapitres (tokens, probabilités, embeddings) avec transformers.js, en local",
+  "scripts": {
+    "tokens": "node tokens.mjs",
+    "mot-suivant": "node motsuivant.mjs",
+    "temperature": "node temperature2.mjs",
+    "embeddings": "node embeddings2.mjs",
+    "embeddings-rag": "node calc.mjs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1"
+  }
+}
